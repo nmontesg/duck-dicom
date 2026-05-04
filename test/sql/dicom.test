@@ -1,0 +1,31 @@
+# name: test/sql/dicom.test
+# description: test dicom extension
+# group: [sql]
+
+# before loading
+statement error
+SELECT read_dicom('/some/path/to/dicom');
+----
+Catalog Error: Scalar Function with name read_dicom does not exist!
+
+# with extension loaded
+require dicom
+
+require json
+
+# test loading DICOM files with and without extension
+statement ok
+FROM read_dicom('test/test_data/IM_2381');
+
+statement ok
+FROM read_dicom('test/test_data/000000.dcm');
+
+# test loading glob patterns
+statement ok
+FROM read_dicom('test/test_data/*');
+
+# test tag extraction
+query II
+SELECT path, dicom_content->'00080070'->'Value' FROM read_dicom('test/test_data/IM_2381');
+----
+test/test_data/IM_2381	["Philips Medical Systems"]
