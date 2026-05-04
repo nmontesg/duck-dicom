@@ -18,7 +18,7 @@ jobs:
     with:
       duckdb_version: v1.5.1
       ci_tools_version: v1.5.1
-      extension_name: quack
+      extension_name: dicom
 
   code-quality-check:
     name: Code Quality Check
@@ -26,6 +26,5 @@ jobs:
     with:
       duckdb_version: v1.5.1
       ci_tools_version: v1.5.1
-      extension_name: quack
+      extension_name: dicom
       format_checks: 'format;tidy'
-      cmake_args: '-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake'
