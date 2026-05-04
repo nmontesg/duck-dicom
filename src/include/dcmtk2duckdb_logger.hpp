@@ -9,20 +9,19 @@ namespace duckdb {
 
 class Dcmtk2DuckDBLogger : public dcmtk::log4cplus::Appender {
 public:
+	Dcmtk2DuckDBLogger(ClientContext *client_context) : dcmtk::log4cplus::Appender(), context(client_context) {
+	}
 
-    Dcmtk2DuckDBLogger(ClientContext *client_context)
-		: dcmtk::log4cplus::Appender(), context(client_context) { }
+	~Dcmtk2DuckDBLogger() override {
+		this->destructorImpl();
+	}
 
-    ~Dcmtk2DuckDBLogger() override {
-        this->destructorImpl();
-    }
-
-    void close() override { }
+	void close() override {
+	}
 
 protected:
-
-    void append(const dcmtk::log4cplus::spi::InternalLoggingEvent &event) override {
-        string msg = event.getMessage();
+	void append(const dcmtk::log4cplus::spi::InternalLoggingEvent &event) override {
+		string msg = event.getMessage();
 		dcmtk::log4cplus::LogLevel dcmtk_loglevel = event.getLogLevel();
 
 		LogLevel duckdb_loglevel = LogLevel::LOG_TRACE;
@@ -39,10 +38,10 @@ protected:
 			duckdb_loglevel = LogLevel::LOG_DEBUG;
 		}
 
-        auto &logger = Logger::Get(*context);
+		auto &logger = Logger::Get(*context);
 		string dcmtk_logtype = "dcmtk";
 		logger.WriteLog(dcmtk_logtype.c_str(), LogLevel::LOG_WARNING, msg);
-    }
+	}
 
 private:
 	ClientContext *context;

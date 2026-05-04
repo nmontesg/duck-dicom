@@ -21,7 +21,7 @@ struct ReadDicomBindData : public TableFunctionData {
 };
 
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
-										   vector<LogicalType> &return_types, vector<string> &names) {
+                                           vector<LogicalType> &return_types, vector<string> &names) {
 	if (input.inputs.empty()) {
 		throw InvalidInputException("read_dicom requires at least one argument");
 	}
@@ -29,12 +29,12 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 	// direct DCMTK logging to DuckDB
 	auto appender = dcmtk::log4cplus::SharedAppenderPtr(new Dcmtk2DuckDBLogger(&context));
 	dcmtk::log4cplus::Logger::getRoot().removeAllAppenders();
-    dcmtk::log4cplus::Logger::getRoot().addAppender(appender);
+	dcmtk::log4cplus::Logger::getRoot().addAppender(appender);
 
 	auto &path_param = input.inputs[0];
 	string glob_pattern = StringValue::Get(path_param);
 	auto &fs = FileSystem::GetFileSystem(context);
-    auto file_list = fs.Glob(glob_pattern);
+	auto file_list = fs.Glob(glob_pattern);
 	if (file_list.empty()) {
 		throw IOException("No DICOM files found matching the provided pattern.");
 	}
@@ -44,15 +44,12 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 
 	// helper function to transform named parameters into lowercase
 	auto to_lower = [](std::string str) {
-        std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
-            return std::tolower(c);
-        });
-        return str;
-    };
+		std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
+		return str;
+	};
 
 	// parse options
-	for (const auto &kv : input.named_parameters)
-	{
+	for (const auto &kv : input.named_parameters) {
 		if (to_lower(kv.first) == "load_pixel_data") {
 			result->options.load_pixel_data = BooleanValue::Get(kv.second);
 		}
@@ -73,7 +70,8 @@ struct ReadDicomGlobalState : public GlobalTableFunctionState {
 	const int64_t total_files;
 
 	explicit ReadDicomGlobalState(int64_t total_files)
-		: GlobalTableFunctionState(), num_files_left_to_read(total_files), total_files(total_files) { }
+	    : GlobalTableFunctionState(), num_files_left_to_read(total_files), total_files(total_files) {
+	}
 
 	bool GetWorkItem(idx_t &start_idx, idx_t &end_idx) {
 		std::lock_guard<std::mutex> lock(mutex);
@@ -93,17 +91,16 @@ struct ReadDicomGlobalState : public GlobalTableFunctionState {
 };
 
 struct ReadDicomLocalState : public LocalTableFunctionState {
-	explicit ReadDicomLocalState() : LocalTableFunctionState() { }
+	explicit ReadDicomLocalState() : LocalTableFunctionState() {
+	}
 };
 
-static unique_ptr<GlobalTableFunctionState> ReadDicomGlobalInit(ClientContext &context,
-                                                                TableFunctionInitInput &input) {
+static unique_ptr<GlobalTableFunctionState> ReadDicomGlobalInit(ClientContext &context, TableFunctionInitInput &input) {
 	auto &bind_data = input.bind_data->Cast<ReadDicomBindData>();
 	return make_uniq<ReadDicomGlobalState>(bind_data.files.size());
 }
 
-static unique_ptr<LocalTableFunctionState> ReadDicomLocalInit(ExecutionContext &context,
-                                                              TableFunctionInitInput &input,
+static unique_ptr<LocalTableFunctionState> ReadDicomLocalInit(ExecutionContext &context, TableFunctionInitInput &input,
                                                               GlobalTableFunctionState *global_state_p) {
 	return make_uniq<ReadDicomLocalState>();
 }
@@ -124,7 +121,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 
 	idx_t count = end_idx - start_idx;
 	auto &path_vector = output.data[0];
-    auto &content_vector = output.data[1];
+	auto &content_vector = output.data[1];
 
 	auto path_data = FlatVector::GetData<string_t>(path_vector);
 	auto content_data = FlatVector::GetData<string_t>(content_vector);
@@ -132,39 +129,38 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 	thread_local std::ostringstream jsonStream;
 
 	idx_t actual_count = 0;
-    for (idx_t i = 0; i <  count; i++) {
+	for (idx_t i = 0; i < count; i++) {
 		idx_t file_index = start_idx + i;
 		auto file_path = bind_data.files[file_index].path;
 		path_data[i] = StringVector::AddString(path_vector, file_path);
 
 		DcmFileFormat fileformat;
-        OFCondition status = fileformat.loadFile(file_path.c_str());
-        if (status.good()) {
-            DcmDataset *dataset = fileformat.getDataset();
+		OFCondition status = fileformat.loadFile(file_path.c_str());
+		if (status.good()) {
+			DcmDataset *dataset = fileformat.getDataset();
 			if (!read_options.load_pixel_data) {
 				dataset->findAndDeleteElement(DcmTag(0x7FE0, 0x0010), OFTrue, OFTrue);
 			}
 
 			jsonStream.str("");
-            jsonStream.clear();
+			jsonStream.clear();
 
 			DcmJsonFormatCompact format;
-            dataset->writeJson(jsonStream, format);
+			dataset->writeJson(jsonStream, format);
 
-            content_data[i] = StringVector::AddString(content_vector, "{" + jsonStream.str() + "}");
-        } else {
+			content_data[i] = StringVector::AddString(content_vector, "{" + jsonStream.str() + "}");
+		} else {
 			auto &logger = Logger::Get(context);
 			logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING, "Could not read file " + file_path);
 			FlatVector::SetNull(content_vector, i, true);
-        }
+		}
 		actual_count += 1;
-    }
+	}
 
-    output.SetCardinality(actual_count);
+	output.SetCardinality(actual_count);
 }
 
-unique_ptr<NodeStatistics> ReadDicomCardinality(ClientContext &context,
-														  const FunctionData *bind_data_p) {
+unique_ptr<NodeStatistics> ReadDicomCardinality(ClientContext &context, const FunctionData *bind_data_p) {
 	auto &bind_data = bind_data_p->Cast<ReadDicomBindData>();
 	return make_uniq<NodeStatistics>(static_cast<idx_t>(bind_data.files.size()));
 }
@@ -182,24 +178,16 @@ double ReadDicomProgress(ClientContext &context, const FunctionData *bind_data_p
 }
 
 static void LoadInternal(ExtensionLoader &loader) {
-	TableFunction read_dicom_func(
-		"read_dicom",
-		{LogicalType::VARCHAR},
-	    ReadDicomFunc,
-		ReadDicomFuncBind,
-		ReadDicomGlobalInit,
-		ReadDicomLocalInit
-	);
+	TableFunction read_dicom_func("read_dicom", {LogicalType::VARCHAR}, ReadDicomFunc, ReadDicomFuncBind,
+	                              ReadDicomGlobalInit, ReadDicomLocalInit);
 	read_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
 
 	FunctionDescription read_dicom_desc;
 	read_dicom_desc.parameter_types = {LogicalType::VARCHAR, LogicalType::BOOLEAN};
 	read_dicom_desc.description =
-		"Load DICOM files into DuckDB. The contents of each file are loaded into a row in JSON format.";
-	read_dicom_desc.examples = {
-		"SELECT * FROM read_dicom('/path/to/dicom_files/*');",
-		"SELECT * FROM read_dicom('/path/to/dicom_files/*', load_pixel_data = true);"
-	};
+	    "Load DICOM files into DuckDB. The contents of each file are loaded into a row in JSON format.";
+	read_dicom_desc.examples = {"SELECT * FROM read_dicom('/path/to/dicom_files/*');",
+	                            "SELECT * FROM read_dicom('/path/to/dicom_files/*', load_pixel_data = true);"};
 	read_dicom_desc.categories = {"medical"};
 
 	read_dicom_func.cardinality = ReadDicomCardinality;
