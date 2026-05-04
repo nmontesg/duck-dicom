@@ -28,3 +28,4 @@ jobs:
       ci_tools_version: v1.5.1
       extension_name: quack
       format_checks: 'format;tidy'
+      cmake_args: '-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake'
