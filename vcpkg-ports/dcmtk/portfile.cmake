@@ -36,9 +36,9 @@ values directly with `VCPKG_CMAKE_CONFIGURE_OPTIONS` in a custom triplet file.
 For more information see
 https://support.dcmtk.org/redmine/projects/dcmtk/wiki/Cross_Compiling
 ]])
-    set(DCMTK_NO_TRY_RUN "-DDCMTK_NO_TRY_RUN:BOOL=ON")
+    set(DCMTK_NO_TRY_RUN "-DDCMTK_NO_TRY_RUN=ON")
 else()
-    set(DCMTK_NO_TRY_RUN "-DDCMTK_NO_TRY_RUN:BOOL=OFF")
+    set(DCMTK_NO_TRY_RUN "-DDCMTK_NO_TRY_RUN=OFF")
 endif()
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
@@ -80,7 +80,7 @@ vcpkg_cmake_configure(
         -DDCMTK_WITH_DOXYGEN=OFF
         -DDCMTK_WITH_SNDFILE=OFF
         -DDCMTK_WITH_WRAP=OFF
-        "${DCMTK_NO_TRY_RUN}"
+        ${DCMTK_NO_TRY_RUN}
     OPTIONS_DEBUG
         -DBUILD_APPS=OFF
 )
