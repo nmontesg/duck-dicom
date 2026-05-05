@@ -80,7 +80,7 @@ vcpkg_cmake_configure(
         -DDCMTK_WITH_DOXYGEN=OFF
         -DDCMTK_WITH_SNDFILE=OFF
         -DDCMTK_WITH_WRAP=OFF
-        ${DCMTK_NO_TRY_RUN}
+        "${DCMTK_NO_TRY_RUN}"
     OPTIONS_DEBUG
         -DBUILD_APPS=OFF
 )
