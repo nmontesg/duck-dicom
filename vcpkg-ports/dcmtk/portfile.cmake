@@ -36,6 +36,9 @@ values directly with `VCPKG_CMAKE_CONFIGURE_OPTIONS` in a custom triplet file.
 For more information see
 https://support.dcmtk.org/redmine/projects/dcmtk/wiki/Cross_Compiling
 ]])
+    set(DCMTK_NO_TRY_RUN "-DDCMTK_NO_TRY_RUN:BOOL=ON")
+else()
+    set(DCMTK_NO_TRY_RUN "-DDCMTK_NO_TRY_RUN:BOOL=OFF")
 endif()
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
@@ -58,12 +61,6 @@ else()
     set(DCMTK_ENABLE_BUILTIN_OFICONV_DATA ON)
 endif()
 
-if (VCPKG_TARGET_IS_EMSCRIPTEN)
-    set(DCMTK_NO_TRY_RUN "-DDCMTK_NO_TRY_RUN:BOOL=ON")
-else()
-    set(DCMTK_NO_TRY_RUN "-DDCMTK_NO_TRY_RUN:BOOL=OFF")
-endif()
-
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
@@ -75,7 +72,7 @@ vcpkg_cmake_configure(
         -DCMAKE_DISABLE_FIND_PACKAGE_FLEX=ON
         -DDCMTK_ENABLE_BUILTIN_OFICONV_DATA=${DCMTK_ENABLE_BUILTIN_OFICONV_DATA}
         -DDCMTK_ENABLE_PRIVATE_TAGS=ON
-        -DDCMTK_ENABLE_STL=OFF   # this needs to go to off for WASM cross-compilation
+        -DDCMTK_ENABLE_STL=OFF
         -DDCMTK_OVERWRITE_WIN32_COMPILER_FLAGS=OFF
         -DDCMTK_USE_FIND_PACKAGE=ON
         -DDCMTK_WIDE_CHAR_FILE_IO_FUNCTIONS=ON
