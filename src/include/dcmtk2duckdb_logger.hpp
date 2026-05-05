@@ -21,7 +21,7 @@ public:
 
 protected:
 	void append(const dcmtk::log4cplus::spi::InternalLoggingEvent &event) override {
-		string msg = event.getMessage();
+		string msg = std::string(event.getMessage().c_str());
 		dcmtk::log4cplus::LogLevel dcmtk_loglevel = event.getLogLevel();
 
 		LogLevel duckdb_loglevel = LogLevel::LOG_TRACE;
