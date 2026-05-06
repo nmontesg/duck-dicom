@@ -23,7 +23,7 @@ FROM read_dicom('path/to/dicom_file.dcm');
 
 ## Functions
 
-### `read_dicom(filepath[, load_pixel_data=true])`
+### `read_dicom(filepath[, load_pixel_data=false])`
 
 Read DICOM files directly into DuckDB, return one row per file and columns `path (VARCHAR)` (path to
 the file) and `dicom_content (JSON)` (JSON-rendered contents of the DICOM file).
@@ -33,7 +33,7 @@ Parameters:
 * `filepath`: path to the DICOM file to be imported. Also accepts glob patterns.
 
 * `load_pixel_data` (optional): whether to strip the pixel data (DICOM tag 7FE0,0010) from the
-  contents. Default is true.
+  contents. Default is false.
 
 ## Examples
 
