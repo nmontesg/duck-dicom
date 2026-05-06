@@ -4,6 +4,8 @@ The `dicom` extension for DuckDB provides functionality to import medical imagin
 Digital Imaging and Communication in Medicine) directly into DuckDB. It uses the powerful [DCMTK C++
 library](https://dicom.offis.de/dcmtk.php.en) to read DICOM files and convert them into JSON format.
 
+**NOTE**: This extension is not supported in WebAssembly.
+
 ## Features
 
 * **Import medical image data directly into DuckDB**: The `read_dicom(FILEPATH)` function imports
