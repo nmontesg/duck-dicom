@@ -192,7 +192,6 @@ double ReadDicomProgress(ClientContext &context, const FunctionData *bind_data_p
 	return 100.0 * static_cast<double>(files_processed) / static_cast<double>(bind_data.files.size());
 }
 
-
 static void LoadInternal(ExtensionLoader &loader) {
 	// read_dicom table function
 	TableFunction read_dicom_func("read_dicom", {LogicalType::VARCHAR}, ReadDicomFunc, ReadDicomFuncBind,
