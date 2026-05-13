@@ -10,3 +10,4 @@ test/python/__pycache__/
 .envrc
 .cache
 .venv
+.vscode

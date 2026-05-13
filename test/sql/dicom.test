@@ -8,10 +8,27 @@ SELECT read_dicom('/some/path/to/dicom');
 ----
 Catalog Error: Scalar Function with name read_dicom does not exist!
 
+statement error
+CREATE SECRET (TYPE dicom, AETITLE 'my_aetitle', HOST 'localhost', PORT '42');
+----
+Invalid Input Error: Secret type 'dicom' not found
+
 # with extension loaded
 require dicom
 
 require json
+
+# =================== READ_DICOM unit tests ===================
+
+# at least one argument needed
+statement error
+SELECT read_dicom();
+----
+
+# path must exists
+statement error
+SELECT read_dicom('non/existent/path');
+----
 
 # test loading DICOM files with and without extension
 statement ok
@@ -23,6 +40,13 @@ FROM read_dicom('test/test_data/000000.dcm');
 # test loading glob patterns
 statement ok
 FROM read_dicom('test/test_data/*');
+
+# test loading pixel data
+statement ok
+FROM read_dicom('test/test_data/*', load_pixel_data=true);
+
+statement ok
+FROM read_dicom('test/test_data/*', LOAD_PIXEL_DATA=true);
 
 # test tag extraction
 query II

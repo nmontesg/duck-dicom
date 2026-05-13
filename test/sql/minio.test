@@ -1,0 +1,25 @@
+# name: test/sql/minio.test
+# description: test dicom extension (reading from cloud)
+# group: [sql]
+
+require-env RUN_LOCAL_S3_TESTS
+
+require dicom
+
+require httpfs
+
+# =================== READ_DICOM from S3 ===================
+
+statement ok
+CREATE SECRET minio_secret (
+    TYPE s3,
+    PROVIDER config,
+	ENDPOINT 'localhost:9000',
+    KEY_ID 'admin',
+    SECRET 'password123',
+	USE_SSL false,
+	URL_STYLE 'path'
+);
+
+statement ok
+FROM read_dicom("s3://dicom-test/2_skull_ct/DICOM/**");

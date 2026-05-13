@@ -3,10 +3,14 @@
 #include "dicom_extension.hpp"
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
+#include "dcmtk/dcmdata/dcistrmb.h"
 #include "dcmtk/dcmdata/dcjson.h"
+#include "dcmtk/dcmdata/dcpath.h"
+#include "dcmtk/dcmdata/dcuid.h"
 #include "duckdb.hpp"
 #include "duckdb/common/multi_file/multi_file_reader.hpp"
-#include "duckdb/parser/parsed_data/create_function_info.hpp"
+#include "duckdb/main/secret/secret_manager.hpp"
+#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
 
@@ -17,8 +21,13 @@ struct ReadDicomOptions {
 struct ReadDicomBindData : public TableFunctionData {
 	vector<OpenFileInfo> files;
 	ReadDicomOptions options;
-	idx_t current_file_index = 0;
 };
+
+static void RedirectDCMTKLogsToDuckDB(ClientContext &context) {
+	auto appender = dcmtk::log4cplus::SharedAppenderPtr(new Dcmtk2DuckDBLogger(&context));
+	dcmtk::log4cplus::Logger::getRoot().removeAllAppenders();
+	dcmtk::log4cplus::Logger::getRoot().addAppender(appender);
+}
 
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
                                            vector<LogicalType> &return_types, vector<string> &names) {
@@ -26,10 +35,7 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 		throw InvalidInputException("read_dicom requires at least one argument");
 	}
 
-	// direct DCMTK logging to DuckDB
-	auto appender = dcmtk::log4cplus::SharedAppenderPtr(new Dcmtk2DuckDBLogger(&context));
-	dcmtk::log4cplus::Logger::getRoot().removeAllAppenders();
-	dcmtk::log4cplus::Logger::getRoot().addAppender(appender);
+	RedirectDCMTKLogsToDuckDB(context);
 
 	auto &path_param = input.inputs[0];
 	string glob_pattern = StringValue::Get(path_param);
@@ -42,15 +48,9 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 	auto result = make_uniq<ReadDicomBindData>();
 	result->files = std::move(file_list);
 
-	// helper function to transform named parameters into lowercase
-	auto to_lower = [](std::string str) {
-		std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
-		return str;
-	};
-
 	// parse options
 	for (const auto &kv : input.named_parameters) {
-		if (to_lower(kv.first) == "load_pixel_data") {
+		if (StringUtil::Lower(kv.first) == "load_pixel_data") {
 			result->options.load_pixel_data = BooleanValue::Get(kv.second);
 		}
 	}
@@ -128,14 +128,29 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 
 	thread_local std::ostringstream jsonStream;
 
+	auto &fs = FileSystem::GetFileSystem(context);
+
 	idx_t actual_count = 0;
 	for (idx_t i = 0; i < count; i++) {
 		idx_t file_index = start_idx + i;
+
+		// path column
 		auto file_path = bind_data.files[file_index].path;
 		path_data[i] = StringVector::AddString(path_vector, file_path);
 
+		// dicom_content column
+		auto handle = fs.OpenFile(file_path, FileOpenFlags::FILE_FLAGS_READ);
+		auto file_size = handle->GetFileSize();
+		auto buffer = std::unique_ptr<char[]>(new char[file_size]);
+		handle->Read(buffer.get(), file_size);
+
+		DcmInputBufferStream bufferStream;
+		bufferStream.setBuffer(buffer.get(), file_size);
+		bufferStream.setEos();
+
 		DcmFileFormat fileformat;
-		OFCondition status = fileformat.loadFile(file_path.c_str());
+		OFCondition status = fileformat.read(bufferStream);
+
 		if (status.good()) {
 			DcmDataset *dataset = fileformat.getDataset();
 			if (!read_options.load_pixel_data) {
@@ -177,18 +192,23 @@ double ReadDicomProgress(ClientContext &context, const FunctionData *bind_data_p
 	return 100.0 * static_cast<double>(files_processed) / static_cast<double>(bind_data.files.size());
 }
 
+
 static void LoadInternal(ExtensionLoader &loader) {
+	// read_dicom table function
 	TableFunction read_dicom_func("read_dicom", {LogicalType::VARCHAR}, ReadDicomFunc, ReadDicomFuncBind,
 	                              ReadDicomGlobalInit, ReadDicomLocalInit);
 	read_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
 
+	CreateTableFunctionInfo read_dicom_info(read_dicom_func);
 	FunctionDescription read_dicom_desc;
 	read_dicom_desc.parameter_types = {LogicalType::VARCHAR, LogicalType::BOOLEAN};
+	read_dicom_desc.parameter_names = {"path", "load_pixel_data"};
 	read_dicom_desc.description =
 	    "Load DICOM files into DuckDB. The contents of each file are loaded into a row in JSON format.";
 	read_dicom_desc.examples = {"SELECT * FROM read_dicom('/path/to/dicom_files/*');",
 	                            "SELECT * FROM read_dicom('/path/to/dicom_files/*', load_pixel_data = true);"};
 	read_dicom_desc.categories = {"medical"};
+	read_dicom_info.descriptions.push_back(read_dicom_desc);
 
 	read_dicom_func.cardinality = ReadDicomCardinality;
 	read_dicom_func.table_scan_progress = ReadDicomProgress;

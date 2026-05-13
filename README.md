@@ -11,7 +11,7 @@ library](https://dicom.offis.de/dcmtk.php.en) to read DICOM files and convert th
 * **Import medical image data directly into DuckDB**: The `read_dicom(FILEPATH)` function imports
   DICOM files in JSON format directly into DuckDB.
 
-## Quickstart
+## Quick start
 
 ```sql
 INSTALL dicom FROM community;
@@ -51,19 +51,39 @@ FROM read_dicom('path/to/dicom_file.dcm', load_pixel_data=true);
 SELECT
     dicom_content->'0020000E'->'Value' AS series_instance_uid,
     any_value(dicom_content->'0008103E'->'Value') AS series_description
-FROM read_dicom('/Users/nmontes/Downloads/slicer_export/**/*.dcm')
+FROM read_dicom('~/Downloads/slicer_export/**/*.dcm')
 GROUP BY 1;
 
 -- extract study description per study instance
 SELECT
     dicom_content->'0020000D'->'Value' AS study_instance_uid,
     any_value(dicom_content->'00081030'->'Value') AS study_description
-FROM read_dicom('/Users/nmontes/Downloads/slicer_export/**/*.dcm')
+FROM read_dicom('~/Downloads/slicer_export/**/*.dcm')
 GROUP BY 1;
+```
+
+The `dicom` extension also supports reading from cloud object storage through the
+[`httpfs` extension](https://duckdb.org/docs/current/core_extensions/httpfs/overview):
+
+```sql
+-- configure httpfs and credentials
+LOAD httpfs;
+
+CREATE OR REPLACE SECRET my_secret (
+    TYPE s3,
+    PROVIDER config,
+    KEY_ID 'my_key',
+    SECRET 'my_secret_key',
+    URL_STYLE 'path'
+);
+
+-- read one file from an AWS S3 bucket
+FROM read_dicom('s3://my-bucket/path/to/dicom_file.dcm');
+
+-- use glob pattern
+FROM read_dicom('s3://my-bucket/path/to/dicoms/**/*.dcm');
 ```
 
 ## Roadmap
 
-* Predicate pushdown in `read_dicom`
-
-* DICOM networking functions to import DICOM datasets through C-MOVE commands
+[ ] DICOM networking functions to import DICOM datasets through C-MOVE commands
