@@ -150,6 +150,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 
 		DcmFileFormat fileformat;
 		OFCondition status = fileformat.read(bufferStream);
+		handle->Close();
 
 		if (status.good()) {
 			DcmDataset *dataset = fileformat.getDataset();
