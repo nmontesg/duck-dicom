@@ -40,7 +40,7 @@ protected:
 
 		auto &logger = Logger::Get(*context);
 		string dcmtk_logtype = "dcmtk";
-		logger.WriteLog(dcmtk_logtype.c_str(), LogLevel::LOG_WARNING, msg);
+		logger.WriteLog(dcmtk_logtype.c_str(), duckdb_loglevel, msg);
 	}
 
 private:

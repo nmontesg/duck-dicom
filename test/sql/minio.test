@@ -22,4 +22,4 @@ CREATE SECRET minio_secret (
 );
 
 statement ok
-FROM read_dicom("s3://dicom-test/2_skull_ct/DICOM/**");
+FROM read_dicom("s3://dicom-test/test_dicom/**");

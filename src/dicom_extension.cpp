@@ -149,15 +149,17 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 		bufferStream.setEos();
 
 		DcmFileFormat fileformat;
-		OFCondition status = fileformat.read(bufferStream);
+		OFCondition status;
+		if (!read_options.load_pixel_data) {
+			status = fileformat.readUntilTag(bufferStream, EXS_Unknown, EGL_noChange, DCM_MaxReadLength,
+			                                 DcmTagKey(0x7FE0, 0x0010));
+		} else {
+			status = fileformat.read(bufferStream);
+		}
 		handle->Close();
 
 		if (status.good()) {
 			DcmDataset *dataset = fileformat.getDataset();
-			if (!read_options.load_pixel_data) {
-				dataset->findAndDeleteElement(DcmTag(0x7FE0, 0x0010), OFTrue, OFTrue);
-			}
-
 			jsonStream.str("");
 			jsonStream.clear();
 
