@@ -53,3 +53,48 @@ query II
 SELECT path, dicom_content->'00080070'->'Value' FROM read_dicom('test/test_data/IM_2381');
 ----
 test/test_data/IM_2381	["Philips Medical Systems"]
+
+# =================== DICOM_TAG type tests ===================
+
+statement ok
+CREATE TABLE dicom_tags_test (id INTEGER, tag DICOM_TAG);
+
+statement ok
+INSERT INTO dicom_tags_test VALUES (1, {'group': '0x0008', 'elem': '0x012D'});
+
+query II
+FROM dicom_tags_test;
+----
+1	0008,012D
+
+statement ok
+INSERT INTO dicom_tags_test VALUES (1, '0008,0008'), (2, '8,8'), (3, '00080008');
+
+statement ok
+INSERT INTO dicom_tags_test VALUES (4, '0008,012D'), (5, '8,12D'), (6, '0008012D');
+
+statement ok
+INSERT INTO dicom_tags_test VALUES (7, '0008,012d'), (8, '8,12d'), (9, '0008012d');
+
+# group too long
+statement error
+INSERT INTO dicom_tags_test VALUES (-1, '12345,0008');
+----
+
+# element too long
+statement error
+INSERT INTO dicom_tags_test VALUES (-1, '0008,12345');
+----
+
+# overall tag too short
+statement error
+INSERT INTO dicom_tags_test VALUES (-1, '000812');
+----
+
+# overall tag too long
+statement error
+INSERT INTO dicom_tags_test VALUES (-1, '000812345');
+----
+
+statement ok
+SELECT unnest(json_keys(dicom_content))::dicom_tag FROM read_dicom('test/test_data/IM_2381');

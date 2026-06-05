@@ -1,6 +1,7 @@
 #define DUCKDB_EXTENSION_MAIN
 
 #include "dicom_extension.hpp"
+#include "dicom_types.hpp"
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmdata/dcistrmb.h"
@@ -156,6 +157,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 		} else {
 			status = fileformat.read(bufferStream);
 		}
+		bufferStream.releaseBuffer();
 		handle->Close();
 
 		if (status.good()) {
@@ -216,6 +218,9 @@ static void LoadInternal(ExtensionLoader &loader) {
 	read_dicom_func.table_scan_progress = ReadDicomProgress;
 
 	loader.RegisterFunction(MultiFileReader::CreateFunctionSet(read_dicom_func));
+
+	// Dicom tag type and casts
+	RegisterDicomTypes(loader);
 }
 
 void DicomExtension::Load(ExtensionLoader &loader) {
