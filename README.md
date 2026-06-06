@@ -21,9 +21,9 @@ LOAD dicom;
 FROM read_dicom('path/to/dicom_file.dcm');
 ```
 
-## Functions
+## Reader function
 
-### `read_dicom(filepath[, load_pixel_data=false])`
+**`read_dicom(filepath[, load_pixel_data=false])`**
 
 Read DICOM files directly into DuckDB, return one row per file and columns `path (VARCHAR)` (path to
 the file) and `dicom_content (JSON)` (JSON-rendered contents of the DICOM file).
@@ -35,7 +35,7 @@ Parameters:
 * `load_pixel_data` (optional): whether to strip the pixel data (DICOM tag 7FE0,0010) from the
   contents. Default is false.
 
-## Examples
+**Examples:**
 
 ```sql
 -- read one file
@@ -84,6 +84,93 @@ FROM read_dicom('s3://my-bucket/path/to/dicom_file.dcm');
 FROM read_dicom('s3://my-bucket/path/to/dicoms/**/*.dcm');
 ```
 
+## `DICOM_TAG` type
+
+The extension provides a custom `DICOM_TAG` type and scalar functions for working with DICOM tags. Tags can be created
+in several ways:
+
+```sql
+CREATE TABLE dicom_tags_test (id INTEGER, tag DICOM_TAG);
+
+-- explicitly specifying the group and element
+INSERT INTO dicom_tags_test VALUES (1, {'group': '0x0008', 'elem': '0x012D'});
+
+-- using a comma to format the tag as GROUP,ELEMENT
+INSERT INTO dicom_tags_test
+VALUES
+  (1, '0008,0008'),
+  (2, '8,8'),
+  (3, '0008,012D'),
+  (4, '8,12D'),
+  (5, '0008,012d'),
+  (6, '8,12d');
+
+-- when not using a comma to separate group and element, the group is parsed
+-- from the first 4 characters and the element from the last 4
+INSERT INTO dicom_tags_test
+VALUES
+  (1, '00080008'),
+  (2, '0008012D'),
+  (3, '0008012d');
+
+-- extract the DICOM tags from a file
+SELECT unnest(json_keys(dicom_content))::dicom_tag
+FROM read_dicom('path/to/dicom/file.dcm');
+```
+
+### Scalar functions for DICOM tags
+
+**`tag_group(DICOM_TAG)`**
+
+Extracts the 16-bit group number from the DICOM tag and returns it as a 4-character, zero-padded hexadecimal `VARCHAR`.
+
+**Examples:**
+
+```sql
+SELECT tag_group('0010,0010') AS group_id;
+
+-- extract unique tag groups from a DICOM file
+SELECT DISTINCT tag_group(unnest(json_keys(dicom_content))::DICOM_TAG) 
+FROM read_dicom('/path/to/dicom_file.dcm');
+```
+
+**``tag_element(DICOM_TAG)``**
+
+Extracts the 16-bit element number from the DICOM tag and returns it as a 4-character, zero-padded hexadecimal `VARCHAR`.
+
+**Examples:**
+
+```sql
+SELECT tag_element('0010,0020') AS element_id;
+```
+
+**``tag_name(DICOM_TAG)``**
+
+Look up the standard human-readable keyword/name for the given DICOM tag based on the standard DICOM dictionary. If the
+tag is private or unknown, it returns the tag formatted as `GGGG,EEEE`.
+
+**Examples:**
+
+```sql
+SELECT tag_name('0010,0010') AS tag_keyword;
+```
+
+### Comprehensive example
+
+Below is an example of how these functions can be combined to parse and analyze all the tags present inside a DICOM file:
+
+```sql
+SELECT 
+    tag AS raw_tag,
+    tag_name(tag) AS keyword,
+    tag_group(tag) AS group_hex,
+    tag_element(tag) AS element_hex
+FROM (
+    SELECT unnest(json_keys(dicom_content))::DICOM_TAG AS tag 
+    FROM read_dicom('/path/to/dicom_file.dcm')
+);
+```
+
 ## Roadmap
 
-[ ] DICOM networking functions to import DICOM datasets through C-MOVE commands
+[ ] DICOM networking functions to import DICOM datasets through C_FIND, C-MOVE commands

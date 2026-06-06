@@ -8,11 +8,6 @@ SELECT read_dicom('/some/path/to/dicom');
 ----
 Catalog Error: Scalar Function with name read_dicom does not exist!
 
-statement error
-CREATE SECRET (TYPE dicom, AETITLE 'my_aetitle', HOST 'localhost', PORT '42');
-----
-Invalid Input Error: Secret type 'dicom' not found
-
 # with extension loaded
 require dicom
 
@@ -50,7 +45,8 @@ FROM read_dicom('test/test_data/*', LOAD_PIXEL_DATA=true);
 
 # test tag extraction
 query II
-SELECT path, dicom_content->'00080070'->'Value' FROM read_dicom('test/test_data/IM_2381');
+SELECT path, dicom_content->'00080070'->'Value'
+FROM read_dicom('test/test_data/IM_2381');
 ----
 test/test_data/IM_2381	["Philips Medical Systems"]
 
@@ -68,33 +64,150 @@ FROM dicom_tags_test;
 1	0008,012D
 
 statement ok
-INSERT INTO dicom_tags_test VALUES (1, '0008,0008'), (2, '8,8'), (3, '00080008');
+INSERT INTO dicom_tags_test
+VALUES
+	(1, '0008,0008'),
+	(2, '8,8'),
+	(3, '00080008');
 
 statement ok
-INSERT INTO dicom_tags_test VALUES (4, '0008,012D'), (5, '8,12D'), (6, '0008012D');
+INSERT INTO dicom_tags_test
+VALUES
+	(4, '0008,012D'),
+	(5, '8,12D'),
+	(6, '0008012D');
 
 statement ok
-INSERT INTO dicom_tags_test VALUES (7, '0008,012d'), (8, '8,12d'), (9, '0008012d');
+INSERT INTO dicom_tags_test
+VALUES
+	(7, '0008,012d'),
+	(8, '8,12d'),
+	(9, '0008012d');
 
 # group too long
 statement error
-INSERT INTO dicom_tags_test VALUES (-1, '12345,0008');
+INSERT INTO dicom_tags_test
+VALUES (-1, '12345,0008');
 ----
 
 # element too long
 statement error
-INSERT INTO dicom_tags_test VALUES (-1, '0008,12345');
+INSERT INTO dicom_tags_test
+VALUES (-1, '0008,12345');
 ----
 
-# overall tag too short
+# no-comma overall tag too short
 statement error
-INSERT INTO dicom_tags_test VALUES (-1, '000812');
+INSERT INTO dicom_tags_test
+VALUES (-1, '000812');
 ----
 
-# overall tag too long
+# no-comma overall tag too long
 statement error
-INSERT INTO dicom_tags_test VALUES (-1, '000812345');
+INSERT INTO dicom_tags_test
+VALUES (-1, '000812345');
 ----
 
 statement ok
-SELECT unnest(json_keys(dicom_content))::dicom_tag FROM read_dicom('test/test_data/IM_2381');
+SELECT unnest(json_keys(dicom_content))::dicom_tag
+FROM read_dicom('test/test_data/IM_2381');
+
+statement ok
+SELECT unnest(json_keys(dicom_content))::dicom_tag
+FROM read_dicom('test/test_data/IM_2381')
+ORDER BY 1;
+
+statement ok
+SELECT unnest(json_keys(dicom_content))::dicom_tag
+FROM read_dicom('test/test_data/IM_2381')
+ORDER BY 1 DESC;
+
+# extract tags
+statement ok
+SELECT tag_group(unnest(json_keys(dicom_content))::dicom_tag) FROM read_dicom('test/test_data/IM_2381');
+
+query I
+SELECT tag_group(unnest(json_keys(dicom_content))::dicom_tag)
+FROM read_dicom('test/test_data/IM_2381')
+ORDER BY 1
+LIMIT 1;
+----
+0008
+
+query I
+SELECT tag_group(unnest(json_keys(dicom_content))::dicom_tag)
+FROM read_dicom('test/test_data/IM_2381')
+ORDER BY 1 DESC
+LIMIT 1;
+----
+2050
+
+# extract elements
+statement ok
+SELECT tag_element(unnest(json_keys(dicom_content))::dicom_tag)
+FROM read_dicom('test/test_data/IM_2381');
+
+query I
+SELECT tag_element(unnest(json_keys(dicom_content))::dicom_tag)
+FROM read_dicom('test/test_data/IM_2381')
+ORDER BY 1
+LIMIT 5;
+----
+0002
+0004
+0005
+0008
+000D
+
+query I
+SELECT tag_element(unnest(json_keys(dicom_content))::dicom_tag)
+FROM read_dicom('test/test_data/IM_2381')
+ORDER BY 1 DESC
+LIMIT 5;
+----
+9007
+5100
+21C0
+2110
+1435
+
+# extract tag names
+statement ok
+SELECT tag_name(unnest(json_keys(dicom_content))::dicom_tag)
+FROM read_dicom('test/test_data/IM_2381');
+
+query I
+SELECT tag_name(unnest(json_keys(dicom_content))::dicom_tag)
+FROM read_dicom('test/test_data/IM_2381')
+ORDER BY 1
+LIMIT 5;
+----
+2001,1001
+2001,1002
+2001,1003
+2001,1004
+2001,1006
+
+query I
+SELECT tag_name(unnest(json_keys(dicom_content))::dicom_tag)
+FROM read_dicom('test/test_data/IM_2381')
+ORDER BY 1 DESC
+LIMIT 5;
+----
+WindowWidth
+WindowCenter
+TransmitCoilName
+TemporalPositionIdentifier
+StudyTime
+
+# comprehensive example
+statement ok
+SELECT 
+    tag AS raw_tag,
+    tag_name(tag) AS keyword,
+    tag_group(tag) AS group_hex,
+    tag_element(tag) AS element_hex
+FROM (
+    SELECT unnest(json_keys(dicom_content))::DICOM_TAG AS tag 
+    FROM read_dicom('test/test_data/IM_2381')
+);

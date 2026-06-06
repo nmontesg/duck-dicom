@@ -1,5 +1,8 @@
 #include "dicom_types.hpp"
+#include "dcmtk/dcmdata/dctag.h"
 #include "duckdb.hpp"
+#include "duckdb/function/scalar_function.hpp"
+#include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 
 namespace duckdb {
 
@@ -123,13 +126,82 @@ bool FromVarcharCast(Vector &source, Vector &result, idx_t count, CastParameters
 	return true;
 }
 
-// TODO implement extraction of the group and element as scalar functions: group(tag_column), element(tag_column)
+void GroupScalarFunc(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &tags_vector = StructVector::GetEntries(args.data[0]);
+	auto &group_vector = *tags_vector[0];
+
+	UnaryExecutor::Execute<uint16_t, string_t>(group_vector, result, args.size(), [&](uint16_t group) {
+		char buf[5];
+		snprintf(buf, sizeof(buf), "%04X", group);
+		return StringVector::AddString(result, buf, 4);
+	});
+}
+
+void ElementScalarFunc(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &tags_vector = StructVector::GetEntries(args.data[0]);
+	auto &elem_vector = *tags_vector[1];
+
+	UnaryExecutor::Execute<uint16_t, string_t>(elem_vector, result, args.size(), [&](uint16_t elem) {
+		char buf[5];
+		snprintf(buf, sizeof(buf), "%04X", elem);
+		return StringVector::AddString(result, buf, 4);
+	});
+}
+
+void TagNameScalarFunc(DataChunk &args, ExpressionState &state, Vector &result) {
+	auto &tags_vector = StructVector::GetEntries(args.data[0]);
+	auto &group_vector = *tags_vector[0];
+	auto &elem_vector = *tags_vector[1];
+
+	BinaryExecutor::Execute<uint16_t, uint16_t, string_t>(
+	    group_vector, elem_vector, result, args.size(), [&](uint16_t group, uint16_t elem) {
+		    DcmTag dcmtk_tag = DcmTag(group, elem);
+		    const char *tag_name = dcmtk_tag.getTagName();
+		    if (StringUtil::StartsWith(tag_name, "Unknown Tag & Data")) {
+			    char buf[12];
+			    snprintf(buf, sizeof(buf), "%04X,%04X", group, elem);
+			    return StringVector::AddString(result, buf);
+		    } else {
+			    return StringVector::AddString(result, tag_name);
+		    }
+	    });
+}
 
 void RegisterDicomTypes(ExtensionLoader &loader) {
 	loader.RegisterType("DICOM_TAG", DICOM_TAG());
 
 	loader.RegisterCastFunction(DICOM_TAG(), LogicalType::VARCHAR, BoundCastInfo(ToVarcharCast), 1);
 	loader.RegisterCastFunction(LogicalType::VARCHAR, DICOM_TAG(), BoundCastInfo(FromVarcharCast), 1);
+
+	ScalarFunction group_func("tag_group", {DICOM_TAG()}, LogicalType::VARCHAR, GroupScalarFunc);
+	CreateScalarFunctionInfo group_info(group_func);
+	FunctionDescription group_desc;
+	group_desc.description =
+	    "Extracts the group of a DICOM tag, as a VARCHAR containing the group in hexadecimal representation.";
+	group_desc.examples = {"SELECT tag_group('0008,01DA')"};
+	group_desc.categories = {"medical"};
+	group_info.descriptions.push_back(group_desc);
+	loader.RegisterFunction(group_func);
+
+	ScalarFunction elem_func("tag_element", {DICOM_TAG()}, LogicalType::VARCHAR, ElementScalarFunc);
+	CreateScalarFunctionInfo elem_info(elem_func);
+	FunctionDescription elem_desc;
+	elem_desc.description =
+	    "Extracts the element of a DICOM tag, as a VARCHAR containing the element in hexadecimal representation.";
+	elem_desc.examples = {"SELECT tag_element('0008,01DA')"};
+	elem_desc.categories = {"medical"};
+	elem_info.descriptions.push_back(elem_desc);
+	loader.RegisterFunction(elem_func);
+
+	ScalarFunction name_func("tag_name", {DICOM_TAG()}, LogicalType::VARCHAR, TagNameScalarFunc);
+	CreateScalarFunctionInfo name_info(name_func);
+	FunctionDescription name_desc;
+	name_desc.description =
+	    "Extracts the name of the DICOM tag. If it can't be found, a VARCHAR with format GGGG,EEEE is returned.";
+	name_desc.examples = {"SELECT tag_name('0008,0008')"};
+	name_desc.categories = {"medical"};
+	name_info.descriptions.push_back(name_desc);
+	loader.RegisterFunction(name_func);
 }
 
 } // namespace duckdb

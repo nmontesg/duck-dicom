@@ -219,7 +219,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 
 	loader.RegisterFunction(MultiFileReader::CreateFunctionSet(read_dicom_func));
 
-	// Dicom tag type and casts
+	// Dicom tag type, casts and scalar functions
 	RegisterDicomTypes(loader);
 }
 
