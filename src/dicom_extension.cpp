@@ -1,6 +1,7 @@
 #define DUCKDB_EXTENSION_MAIN
 
 #include "dicom_extension.hpp"
+#include "dicom_types.hpp"
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmdata/dcistrmb.h"
@@ -149,15 +150,18 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 		bufferStream.setEos();
 
 		DcmFileFormat fileformat;
-		OFCondition status = fileformat.read(bufferStream);
+		OFCondition status;
+		if (!read_options.load_pixel_data) {
+			status = fileformat.readUntilTag(bufferStream, EXS_Unknown, EGL_noChange, DCM_MaxReadLength,
+			                                 DcmTagKey(0x7FE0, 0x0010));
+		} else {
+			status = fileformat.read(bufferStream);
+		}
+		bufferStream.releaseBuffer();
 		handle->Close();
 
 		if (status.good()) {
 			DcmDataset *dataset = fileformat.getDataset();
-			if (!read_options.load_pixel_data) {
-				dataset->findAndDeleteElement(DcmTag(0x7FE0, 0x0010), OFTrue, OFTrue);
-			}
-
 			jsonStream.str("");
 			jsonStream.clear();
 
@@ -214,6 +218,9 @@ static void LoadInternal(ExtensionLoader &loader) {
 	read_dicom_func.table_scan_progress = ReadDicomProgress;
 
 	loader.RegisterFunction(MultiFileReader::CreateFunctionSet(read_dicom_func));
+
+	// Dicom tag type, casts and scalar functions
+	RegisterDicomTypes(loader);
 }
 
 void DicomExtension::Load(ExtensionLoader &loader) {

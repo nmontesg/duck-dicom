@@ -36,7 +36,7 @@ setup_minio: download_test_data configure_aws_profile
 		s3 mb s3://dicom-test
 
 	aws --endpoint-url $(MINIO_ENDPOINT) --profile $(MINIO_PROFILE) \
-		s3 sync $(DATA_SOURCE) s3://dicom-test/2_skull_ct
+		s3 sync $(DATA_SOURCE) s3://dicom-test/test_dicom
 
 stop_minio:
 	docker rm -f -v minio
