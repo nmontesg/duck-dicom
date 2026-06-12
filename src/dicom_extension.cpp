@@ -1,6 +1,7 @@
 #define DUCKDB_EXTENSION_MAIN
 
 #include "dicom_extension.hpp"
+#include "dicom_secret.hpp"
 #include "dicom_types.hpp"
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
@@ -33,7 +34,7 @@ static void RedirectDCMTKLogsToDuckDB(ClientContext &context) {
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
                                            vector<LogicalType> &return_types, vector<string> &names) {
 	if (input.inputs.empty()) {
-		throw InvalidInputException("read_dicom requires at least one argument");
+		throw InvalidInputException("read_dicom requires at least one argument.");
 	}
 
 	RedirectDCMTKLogsToDuckDB(context);
@@ -221,6 +222,9 @@ static void LoadInternal(ExtensionLoader &loader) {
 
 	// Dicom tag type, casts and scalar functions
 	RegisterDicomTypes(loader);
+
+	// Dicom secret
+	RegisterDicomSecret(loader);
 }
 
 void DicomExtension::Load(ExtensionLoader &loader) {

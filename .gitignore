@@ -11,3 +11,5 @@ test/python/__pycache__/
 .cache
 .venv
 .vscode
+*.crt
+*.key

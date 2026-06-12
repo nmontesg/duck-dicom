@@ -211,3 +211,69 @@ FROM (
     SELECT unnest(json_keys(dicom_content))::DICOM_TAG AS tag 
     FROM read_dicom('test/test_data/IM_2381')
 );
+
+# =================== DICOM secret tests ===================
+statement ok
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 8042,
+	AETITLE 'ORTHANC'
+);
+
+# missing host
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	PORT 8042,
+	AETITLE 'ORTHANC'
+);
+----
+
+# missing port
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	AETITLE 'ORTHANC'
+);
+----
+
+# missing aetitle is okay
+statement ok
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 8042
+);
+
+# TLS without CA title not accepted
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 8042,
+	TLS true
+);
+----
+
+# TLS with file that exists
+statement ok
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 8042,
+	TLS true,
+	TLS_CA_FILE 'test/test_data/dummy_ca'
+);
+
+# TLS with file that doesn't exists
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 8042,
+	TLS true,
+	TLS_CA_FILE 'i/dont/exist.crt'
+);
+----

@@ -6,7 +6,7 @@ namespace duckdb {
 
 class DicomExtension : public Extension {
 public:
-	void Load(ExtensionLoader &db) override;
+	void Load(ExtensionLoader &) override;
 	std::string Name() override;
 	std::string Version() const override;
 };
