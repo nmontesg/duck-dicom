@@ -1,6 +1,7 @@
 #define DUCKDB_EXTENSION_MAIN
 
 #include "dicom_extension.hpp"
+#include "dicom_query.hpp"
 #include "dicom_secret.hpp"
 #include "dicom_types.hpp"
 #include "dcmtk2duckdb_logger.hpp"
@@ -25,12 +26,6 @@ struct ReadDicomBindData : public TableFunctionData {
 	ReadDicomOptions options;
 };
 
-static void RedirectDCMTKLogsToDuckDB(ClientContext &context) {
-	auto appender = dcmtk::log4cplus::SharedAppenderPtr(new Dcmtk2DuckDBLogger(&context));
-	dcmtk::log4cplus::Logger::getRoot().removeAllAppenders();
-	dcmtk::log4cplus::Logger::getRoot().addAppender(appender);
-}
-
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
                                            vector<LogicalType> &return_types, vector<string> &names) {
 	if (input.inputs.empty()) {
@@ -54,6 +49,8 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 	for (const auto &kv : input.named_parameters) {
 		if (StringUtil::Lower(kv.first) == "load_pixel_data") {
 			result->options.load_pixel_data = BooleanValue::Get(kv.second);
+		} else {
+			throw InvalidInputException("Unknown input parameter " + StringUtil::Lower(kv.first));
 		}
 	}
 
@@ -225,6 +222,9 @@ static void LoadInternal(ExtensionLoader &loader) {
 
 	// Dicom secret
 	RegisterDicomSecret(loader);
+
+	// Dicom Query-Retrieve functions
+	RegisterDicomQueryFunctions(loader);
 }
 
 void DicomExtension::Load(ExtensionLoader &loader) {

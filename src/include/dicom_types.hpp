@@ -4,16 +4,16 @@ namespace duckdb {
 
 LogicalType DICOM_TAG();
 
-void DicomTagToVarchar(Vector &source, Vector &result, idx_t count);
-bool ToVarcharCast(Vector &source, Vector &result, idx_t count, CastParameters &parameters);
+void DicomTagToVarchar(Vector &, Vector &, idx_t);
+bool ToVarcharCast(Vector &, Vector &, idx_t, CastParameters &);
 
-void VarcharToDicomTagCast(Vector &source, Vector &result, idx_t count);
-bool FromVarcharCast(Vector &source, Vector &result, idx_t count, CastParameters &parameters);
+void VarcharToDicomTagCast(Vector &, Vector &, idx_t);
+bool FromVarcharCast(Vector &, Vector &, idx_t, CastParameters &);
 
-void GroupScalarFunc(DataChunk &args, ExpressionState &state, Vector &result);
-void ElementScalarFunc(DataChunk &args, ExpressionState &state, Vector &result);
-void TagNameScalarFunc(DataChunk &args, ExpressionState &state, Vector &result);
+void GroupScalarFunc(DataChunk &, ExpressionState &, Vector &);
+void ElementScalarFunc(DataChunk &, ExpressionState &, Vector &);
+void TagNameScalarFunc(DataChunk &, ExpressionState &, Vector &);
 
-void RegisterDicomTypes(ExtensionLoader &loader);
+void RegisterDicomTypes(ExtensionLoader &);
 
 } // namespace duckdb

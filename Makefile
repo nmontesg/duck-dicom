@@ -71,6 +71,7 @@ setup_orthanc: generate_tls_certs stop_orthanc
 		-e ORTHANC__DICOM_TLS_CERTIFICATE=/etc/share/orthanc/tls/orthanc.crt \
 		-e ORTHANC__DICOM_TLS_PRIVATE_KEY=/etc/share/orthanc/tls/orthanc.key \
 		-e ORTHANC__DICOM_TLS_TRUSTED_CERTIFICATES=/etc/share/orthanc/tls/trusted.crt \
+		-e ORTHANC__DICOM_ALWAYS_ALLOW_FIND=true \
 		orthancteam/orthanc:latest
 
 	@echo "Waiting for Orthanc REST API to become available..."
@@ -82,3 +83,5 @@ setup_orthanc: generate_tls_certs stop_orthanc
 
 stop_orthanc:
 	docker rm -f -v orthanc
+
+setup_test_services: setup_minio setup_orthanc

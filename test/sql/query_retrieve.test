@@ -1,0 +1,102 @@
+# name: test/sql/query_retrieve.test
+# description: test dicom extension (DICOM query-retrieve)
+# group: [sql]
+
+require-env RUN_LOCAL_QR_TESTS
+
+require dicom
+
+# =================== QUERY_DICOM ===================
+
+statement ok
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	AETITLE 'ORTHANC',
+	TLS_CA_FILE 'test/tls/duckdb/duckdb.crt',
+	TLS_KEY_FILE 'test/tls/duckdb/duckdb.key',
+	PEER_CA_FILE 'test/tls/duckdb/trusted.crt'
+);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', query={'Modality': 'MR'});
+
+statement error
+FROM query_dicom(secret='wrong_secret_name', query={'Modality': 'MR'});
+----
+
+statement ok
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	query={'Modality': 'MR'});
+
+# missing all credentials
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	query={'Modality': 'MR'});
+----
+
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	query={'Modality': 'MR'});
+----
+
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	query={'Modality': 'MR'});
+----
+
+# wrong TLS credential filepaths
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='i/dont/exist',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	query={'Modality': 'MR'});
+----
+
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	tls_key_file='i/dont/exist',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	query={'Modality': 'MR'});
+----
+
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	peer_ca_file='i/dont/exist',
+	query={'Modality': 'MR'});
+----

@@ -1,8 +1,12 @@
 {
   "dependencies": [
     "curl",
-    "dcmtk",
-    "openssl"
+    {
+      "name": "dcmtk",
+      "features": [
+        "openssl"
+      ]
+    }
   ],
   "vcpkg-configuration": {
     "overlay-ports": [

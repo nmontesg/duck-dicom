@@ -2,7 +2,8 @@
 
 namespace duckdb {
 
-unique_ptr<BaseSecret> CreateDicomSecretFunction(ClientContext &context, CreateSecretInput &input);
-void RegisterDicomSecret(ExtensionLoader &loader);
+void CheckFileExists(KeyValueSecret &, FileSystem &, string);
+unique_ptr<BaseSecret> CreateDicomSecretFunction(ClientContext &, CreateSecretInput &);
+void RegisterDicomSecret(ExtensionLoader &);
 
 } // namespace duckdb
