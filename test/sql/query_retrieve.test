@@ -20,10 +20,22 @@ CREATE OR REPLACE SECRET dicom_test_secret (
 );
 
 statement ok
-FROM query_dicom(secret='dicom_test_secret', query={'Modality': 'MR'});
+FROM query_dicom(secret='dicom_test_secret', qr_level='patient', retrieve_keys=['PatientID']);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', match_keys={'Modality': 'MR'}, retrieve_keys=['StudyInstanceUID']);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', qr_level='study', match_keys={'Modality': 'MR'}, retrieve_keys=['StudyInstanceUID']);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', qr_level='series', match_keys={'Modality': 'MR'}, retrieve_keys=['SeriesInstanceUID', 'SeriesDescription']);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', qr_level='image', match_keys={'Modality': 'MR'}, retrieve_keys=['ImagePositionPatient', 'SOPInstanceUID']);
 
 statement error
-FROM query_dicom(secret='wrong_secret_name', query={'Modality': 'MR'});
+FROM query_dicom(secret='dicom_test_secret', qr_level='wrong', match_keys={'Modality': 'MR'});
 ----
 
 statement ok
@@ -34,7 +46,8 @@ FROM query_dicom(
 	tls_ca_file='test/tls/duckdb/duckdb.crt',
 	tls_key_file='test/tls/duckdb/duckdb.key',
 	peer_ca_file='test/tls/duckdb/trusted.crt',
-	query={'Modality': 'MR'});
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
 
 # missing all credentials
 statement error
@@ -44,7 +57,8 @@ FROM query_dicom(
 	aetitle='ORTHANC',
 	tls_key_file='test/tls/duckdb/duckdb.key',
 	peer_ca_file='test/tls/duckdb/trusted.crt',
-	query={'Modality': 'MR'});
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
 ----
 
 statement error
@@ -54,7 +68,8 @@ FROM query_dicom(
 	aetitle='ORTHANC',
 	tls_ca_file='test/tls/duckdb/duckdb.crt',
 	peer_ca_file='test/tls/duckdb/trusted.crt',
-	query={'Modality': 'MR'});
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
 ----
 
 statement error
@@ -64,7 +79,8 @@ FROM query_dicom(
 	aetitle='ORTHANC',
 	tls_ca_file='test/tls/duckdb/duckdb.crt',
 	tls_key_file='test/tls/duckdb/duckdb.key',
-	query={'Modality': 'MR'});
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
 ----
 
 # wrong TLS credential filepaths
@@ -76,7 +92,8 @@ FROM query_dicom(
 	tls_ca_file='i/dont/exist',
 	tls_key_file='test/tls/duckdb/duckdb.key',
 	peer_ca_file='test/tls/duckdb/trusted.crt',
-	query={'Modality': 'MR'});
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
 ----
 
 statement error
@@ -87,7 +104,8 @@ FROM query_dicom(
 	tls_ca_file='test/tls/duckdb/duckdb.crt',
 	tls_key_file='i/dont/exist',
 	peer_ca_file='test/tls/duckdb/trusted.crt',
-	query={'Modality': 'MR'});
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
 ----
 
 statement error
@@ -98,5 +116,6 @@ FROM query_dicom(
 	tls_ca_file='test/tls/duckdb/duckdb.crt',
 	tls_key_file='test/tls/duckdb/duckdb.key',
 	peer_ca_file='i/dont/exist',
-	query={'Modality': 'MR'});
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
 ----

@@ -235,6 +235,8 @@ When specifying a `dicom` secret with TLS credentials, the following three paths
 
 ### `query_dicom` table function
 
+<!-- TODO update -->
+
 The `query_dicom` function execute DICOM C-FIND query requests directly from DuckDB to a remote DICOM peer
 (such as a PACS), and parses the responses directly into a DuckDB table. The result table has a single column named
 `dicom_response` of type `JSON`.
@@ -247,10 +249,12 @@ SELECT * FROM query_dicom(
     tls_ca_file = 'my/certificate.crt',
     tls_key_file = 'my/keyfile.key',
     peer_ca_file = 'trusted.crt',
-    query = {'Modality': 'MR'},
+    qr_level = 'study',
     acse_timeout = 30,
     dimse_timeout = 0,
-    max_receive_pdu_length = 16384
+    max_receive_pdu_length = 16384,
+    match_keys = {},
+    retrieve_keys = []
 );
 ```
 
@@ -261,13 +265,15 @@ SELECT * FROM query_dicom(
 | `host` | `VARCHAR` | The IP address or hostname of the remote DICOM Application Entity (AE). | Yes |
 | `port` | `UINTEGER` | "The network port of the remote DICOM peer (e.g., 104, 11112, or 2762 for TLS)." | Yes |
 | `aetitle` | `VARCHAR` | The Called Application Entity Title (AE Title) of the remote node. | No |
-| `query` | `MAP` | "A key-value struct representing the matching tags for the C-FIND request (e.g., {'PatientName': 'John*', 'Modality': 'CT'})." | Yes |
 | `tls_ca_file` | `VARCHAR` | Path to your local client identity public certificate (.crt/.pem) for mTLS. | No |
 | `tls_key_file` | `VARCHAR` | Path to your local client private key file (.key) for mTLS. | No |
 | `peer_ca_file` | `VARCHAR` | Path to the trusted Root Certificate Authority bundle to verify the peer. | No |
+| `qr_level` | `VARCHAR` | Query/Retrieve level. Options are: `'patient'`, `'study'`, `'series'`, `'image'`. Default is `'study'`. | No |
 | `acse_timeout` | `UINTEGER` | Timeout limit (in seconds) for the Association Control Service Element (ACSE) connection handshakes. Default is 30 | No |
 | `dimse_timeout` | `UINTEGER` | Timeout limit (in seconds) for waiting on active DICOM Message Service Element (DIMSE) network operations and message streaming. Default is 0 (no timeout) | No |
 | `max_receive_pdu_length` | `UINTEGER` | The maximum Protocol Data Unit (PDU) buffer size (in bytes) that the client is willing to accept per network transaction frame. Default is 16384 (16kB) | No |
+| `match_keys` | `MAP(VARCHAR, VARCHAR)` | A key-value struct representing the matching tags for the C-FIND request (e.g., `{'PatientName': 'John*', 'Modality': 'CT'}`). Default is empty. | No |
+| `retrieve_keys` | `LIST(VARCHAR)` | A list of extra tags to retrieve in the response (e.g. `['ProtocolName', 'StudyInstanceUID']`). Default is empty. | No |
 
 The `host`, `port`, `aetitle` and TLS-related fields can also be retrieved from a named DICOM secret:
 
@@ -283,6 +289,37 @@ documentation](https://support.dcmtk.org/docs/findscu.html).
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
 | `dicom_response` | `JSON` | A compact JSON object containing the DICOM dataset returned by the C-FIND match. |
+
+**Examples:**
+
+```sql
+-- retrieve all patient IDs and birth dates
+FROM query_dicom(
+  secret='my_dicom_secret',
+  qr_level='patient',
+  retrieve_keys=['PatientID', 'PatientBirthDate']);
+
+-- retrieve all study UIDs of MR studies
+FROM query_dicom(
+  secret='my_dicom_secret',
+  qr_level='study',
+  match_keys={'Modality': 'MR'},
+  retrieve_keys=['StudyInstanceUID']);
+
+-- retrieve series UIDs and descriptions for all series
+FROM query_dicom(
+  secret='my_dicom_secret',
+  qr_level='series',
+  match_keys={'SeriesDate': '20070101'},
+  retrieve_keys=['SeriesInstanceUID', 'SeriesDescription']);
+
+-- retrieve position and image UIDs for all MR images 
+FROM query_dicom(
+  secret='my_dicom_secret',
+  qr_level='image',
+  match_keys={'Modality': 'MR'},
+  retrieve_keys=['ImagePositionPatient', 'SOPInstanceUID']);
+```
 
 ## Roadmap
 

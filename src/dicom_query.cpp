@@ -12,7 +12,7 @@
 
 namespace duckdb {
 
-void ParseQuery(const Value &input_query, QueryDicomBindData &bind_data) {
+void ParseMatchKeys(const Value &input_query, QueryDicomBindData &bind_data) {
 	if (input_query.IsNull()) {
 		return;
 	}
@@ -29,8 +29,20 @@ void ParseQuery(const Value &input_query, QueryDicomBindData &bind_data) {
 		const string overrideKey = key + "=" + val;
 		bind_data.query.push_back(overrideKey.c_str());
 	}
-	bind_data.query.push_back("QueryRetrieveLevel=IMAGE");
-	bind_data.query.push_back("SOPInstanceUID");
+}
+
+void ParseRetrieveKeys(const Value &input_query, QueryDicomBindData &bind_data) {
+	if (input_query.IsNull()) {
+		return;
+	}
+	const auto &map_elements = ListValue::GetChildren(input_query);
+	for (const auto &element : map_elements) {
+		if (element.IsNull()) {
+			continue;
+		}
+		const string retrieveKey = StringValue::Get(element);
+		bind_data.query.push_back(retrieveKey.c_str());
+	}
 }
 
 unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
@@ -53,6 +65,14 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 			result->calledAETitle = StringValue::Get(kv.second);
 		} else if (kv.first == "calling_aetitle") {
 			result->callingAETitle = StringValue::Get(kv.second);
+		} else if (kv.first == "qr_level") {
+			auto input_qr_level = StringValue::Get(kv.second);
+			auto it =
+			    find(QUERY_RETRIEVE_LEVELS.begin(), QUERY_RETRIEVE_LEVELS.end(), StringUtil::Upper(input_qr_level));
+			if (it == QUERY_RETRIEVE_LEVELS.end()) {
+				throw InvalidInputException("Unknown Query/Retrieve level " + input_qr_level);
+			}
+			result->query_retrieve_level = StringUtil::Upper(input_qr_level);
 		} else if (kv.first == "acse_timeout") {
 			result->acseTimeout = UIntegerValue::Get(kv.second);
 		} else if (kv.first == "dimse_timeout") {
@@ -68,12 +88,17 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 		} else if (kv.first == "peer_ca_file") {
 			result->peerCAFile = StringValue::Get(kv.second);
 			result->useTls = true;
-		} else if (kv.first == "query") {
-			ParseQuery(kv.second, *result);
+		} else if (kv.first == "match_keys") {
+			ParseMatchKeys(kv.second, *result);
+		} else if (kv.first == "retrieve_keys") {
+			ParseRetrieveKeys(kv.second, *result);
 		} else {
 			throw InvalidInputException("Unknown query_dicom argument " + kv.first);
 		}
 	}
+
+	string qr_key = "QueryRetrieveLevel=" + StringUtil::Upper(result->query_retrieve_level);
+	result->query.push_back(qr_key.c_str());
 
 	if (use_secret) {
 		auto &secret_manager = SecretManager::Get(context);
@@ -226,27 +251,51 @@ void RegisterDicomQueryFunctions(ExtensionLoader &loader) {
 	query_dicom_func.named_parameters["port"] = LogicalType::UINTEGER;
 	query_dicom_func.named_parameters["aetitle"] = LogicalType::VARCHAR;
 	query_dicom_func.named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
+	query_dicom_func.named_parameters["qr_level"] = LogicalType::VARCHAR;
 	query_dicom_func.named_parameters["acse_timeout"] = LogicalType::UINTEGER;
 	query_dicom_func.named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
 	query_dicom_func.named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
 	query_dicom_func.named_parameters["tls_key_file"] = LogicalType::VARCHAR;
 	query_dicom_func.named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
 	query_dicom_func.named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["query"] = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
+	query_dicom_func.named_parameters["match_keys"] = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
+	query_dicom_func.named_parameters["retrieve_keys"] = LogicalType::LIST(LogicalType::VARCHAR);
 
 	CreateTableFunctionInfo query_dicom_info(query_dicom_func);
 	FunctionDescription query_dicom_desc;
-	query_dicom_desc.parameter_types = {
-	    LogicalType::VARCHAR,  LogicalType::VARCHAR,  LogicalType::UINTEGER,
-	    LogicalType::VARCHAR,  LogicalType::VARCHAR,  LogicalType::UINTEGER,
-	    LogicalType::UINTEGER, LogicalType::UINTEGER, LogicalType::VARCHAR,
-	    LogicalType::VARCHAR,  LogicalType::VARCHAR,  LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR)};
-	query_dicom_desc.parameter_names = {"secret",          "host",         "port",         "aetitle",
-	                                    "calling_aetitle", "acse_timeout", "dimse_output", "max_receive_pdu_length",
-	                                    "tls_key_file",    "tls_ca_file",  "peer_ca_file", "query"};
+	query_dicom_desc.parameter_types = {LogicalType::VARCHAR,
+	                                    LogicalType::VARCHAR,
+	                                    LogicalType::UINTEGER,
+	                                    LogicalType::VARCHAR,
+	                                    LogicalType::VARCHAR,
+	                                    LogicalType::VARCHAR,
+	                                    LogicalType::UINTEGER,
+	                                    LogicalType::UINTEGER,
+	                                    LogicalType::UINTEGER,
+	                                    LogicalType::VARCHAR,
+	                                    LogicalType::VARCHAR,
+	                                    LogicalType::VARCHAR,
+	                                    LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR),
+	                                    LogicalType::LIST(LogicalType::VARCHAR)};
+	query_dicom_desc.parameter_names = {"secret",
+	                                    "host",
+	                                    "port",
+	                                    "aetitle",
+	                                    "calling_aetitle",
+	                                    "qr_level",
+	                                    "acse_timeout",
+	                                    "dimse_output",
+	                                    "max_receive_pdu_length",
+	                                    "tls_key_file",
+	                                    "tls_ca_file",
+	                                    "peer_ca_file",
+	                                    "match_keys",
+	                                    "retrieve_keys"};
 	query_dicom_desc.description = "Query remote DICOM nodes using C-FIND commands";
-	query_dicom_desc.examples = {"FROM query_dicom(host='localhost', port=4242, query={'Modality': 'MR'});",
-	                             "FROM query_dicom(secret='my_dicom_conn_secret', query={'StudyDate': '20070101'});"};
+	query_dicom_desc.examples = {
+	    "FROM query_dicom(host='localhost', port=4242, match_keys={'Modality': 'MR'}, "
+	    "retrieve_keys=['StudyInstanceUID']);",
+	    "FROM query_dicom(secret='my_dicom_conn_secret', qr_level='series', match_keys={'SeriesDate': '20070101'});"};
 	query_dicom_desc.categories = {"medical"};
 	query_dicom_info.descriptions.push_back(query_dicom_desc);
 

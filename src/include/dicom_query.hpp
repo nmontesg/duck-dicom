@@ -4,12 +4,15 @@
 
 namespace duckdb {
 
+static vector<string> QUERY_RETRIEVE_LEVELS = {"PATIENT", "STUDY", "SERIES", "IMAGE"};
+
 struct QueryDicomBindData : public TableFunctionData {
 	string host;
 	uint port;
 	string calledAETitle = "ANY-SCP";
 	string callingAETitle = "DUCKDB";
 	string abstractSyntax = UID_FINDStudyRootQueryRetrieveInformationModel;
+	string query_retrieve_level = "STUDY";
 	E_TransferSyntax networkTransferSyntax = EXS_Unknown;
 	T_DIMSE_BlockingMode blockMode = DIMSE_BLOCKING;
 	uint acseTimeout = 30;
@@ -31,7 +34,8 @@ struct QueryDicomGlobalState : public GlobalTableFunctionState {
 	}
 };
 
-void ParseQuery(const Value &, QueryDicomBindData &);
+void ParseMatchKeys(const Value &, QueryDicomBindData &);
+void ParseRetrieveKeys(const Value &, QueryDicomBindData &);
 unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &, TableFunctionBindInput &, vector<LogicalType> &,
                                             vector<string> &);
 unique_ptr<GlobalTableFunctionState> QueryDicomGlobalInit(ClientContext &, TableFunctionInitInput &);
