@@ -11,7 +11,6 @@
 #include "dcmtk/dcmdata/dcpath.h"
 #include "dcmtk/dcmdata/dcuid.h"
 #include "duckdb.hpp"
-#include "duckdb/common/multi_file/multi_file_reader.hpp"
 #include "duckdb/main/secret/secret_manager.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
@@ -215,7 +214,7 @@ static void LoadInternal(ExtensionLoader &loader) {
 	read_dicom_func.cardinality = ReadDicomCardinality;
 	read_dicom_func.table_scan_progress = ReadDicomProgress;
 
-	loader.RegisterFunction(MultiFileReader::CreateFunctionSet(read_dicom_func));
+	loader.RegisterFunction(read_dicom_func);
 
 	// Dicom tag type, casts and scalar functions
 	RegisterDicomTypes(loader);
