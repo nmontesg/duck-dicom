@@ -25,6 +25,11 @@ statement error
 SELECT read_dicom('non/existent/path');
 ----
 
+# unknown parameter
+statement error
+SELECT read_dicom('test/test_data/IM_2381', UNKNOWN_ARG='some value');
+----
+
 # test loading DICOM files with and without extension
 statement ok
 FROM read_dicom('test/test_data/IM_2381');
@@ -211,3 +216,129 @@ FROM (
     SELECT unnest(json_keys(dicom_content))::DICOM_TAG AS tag 
     FROM read_dicom('test/test_data/IM_2381')
 );
+
+# =================== DICOM secret tests ===================
+statement ok
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	AETITLE 'ORTHANC'
+);
+
+# unknown parameter
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	AETITLE 'ORTHANC',
+	UNKNOWN_PARAM 'some_value'
+);
+----
+
+# missing host
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	PORT 4242,
+	AETITLE 'ORTHANC'
+);
+----
+
+# missing port
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	AETITLE 'ORTHANC'
+);
+----
+
+# missing aetitle is okay
+statement ok
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242
+);
+
+# TLS with file that exists
+statement ok
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	TLS_CA_FILE 'test/test_data/dummy_ca',
+	TLS_KEY_FILE 'test/test_data/dummy_ca',
+	PEER_CA_FILE 'test/test_data/dummy_ca'
+);
+
+# CA with file that doesn't exists
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	TLS_CA_FILE 'i/dont/exist.crt',
+	TLS_KEY_FILE 'test/test_data/dummy_ca',
+	PEER_CA_FILE 'test/test_data/dummy_ca'
+);
+----
+
+# CA with file that doesn't exists
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	TLS_CA_FILE 'test/test_data/dummy_ca',
+	TLS_KEY_FILE 'i/dont/exist.crt',
+	PEER_CA_FILE 'test/test_data/dummy_ca'
+);
+----
+
+# peer CA with file that doesn't exists
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	TLS_CA_FILE 'test/test_data/dummy_ca',
+	TLS_KEY_FILE 'test/test_data/dummy_ca',
+	PEER_CA_FILE 'i/dont/exist.crt'
+);
+----
+
+# missing TLS CA file
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	TLS_KEY_FILE 'test/test_data/dummy_ca',
+	PEER_CA_FILE 'test/test_data/dummy_ca'
+);
+----
+
+# missing TLS key file
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	TLS_CA_FILE 'test/test_data/dummy_ca',
+	PEER_CA_FILE 'test/test_data/dummy_ca'
+);
+----
+
+# missing peer CA file
+statement error
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	TLS_CA_FILE 'test/test_data/dummy_ca',
+	TLS_KEY_FILE 'test/test_data/dummy_ca'
+);
+----

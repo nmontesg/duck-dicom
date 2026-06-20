@@ -1,5 +1,4 @@
 #include "duckdb.hpp"
-
 #include "dcmtk/oflog/appender.h"
 #include "dcmtk/oflog/layout.h"
 #include "dcmtk/oflog/oflog.h"
@@ -46,5 +45,11 @@ protected:
 private:
 	ClientContext *context;
 };
+
+static void RedirectDCMTKLogsToDuckDB(ClientContext &context) {
+	auto appender = dcmtk::log4cplus::SharedAppenderPtr(new Dcmtk2DuckDBLogger(&context));
+	dcmtk::log4cplus::Logger::getRoot().removeAllAppenders();
+	dcmtk::log4cplus::Logger::getRoot().addAppender(appender);
+}
 
 } // namespace duckdb

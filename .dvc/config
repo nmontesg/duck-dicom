@@ -1,6 +1,4 @@
 [core]
     remote = gdrive
-['remote "local"']
-    url = /Users/nmontes/dvcstore/duck-dicom
 ['remote "gdrive"']
     url = gdrive://root/dvcstore/duck-dicom

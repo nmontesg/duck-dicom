@@ -1,6 +1,8 @@
 #define DUCKDB_EXTENSION_MAIN
 
 #include "dicom_extension.hpp"
+#include "dicom_query.hpp"
+#include "dicom_secret.hpp"
 #include "dicom_types.hpp"
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
@@ -9,7 +11,6 @@
 #include "dcmtk/dcmdata/dcpath.h"
 #include "dcmtk/dcmdata/dcuid.h"
 #include "duckdb.hpp"
-#include "duckdb/common/multi_file/multi_file_reader.hpp"
 #include "duckdb/main/secret/secret_manager.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
@@ -24,16 +25,10 @@ struct ReadDicomBindData : public TableFunctionData {
 	ReadDicomOptions options;
 };
 
-static void RedirectDCMTKLogsToDuckDB(ClientContext &context) {
-	auto appender = dcmtk::log4cplus::SharedAppenderPtr(new Dcmtk2DuckDBLogger(&context));
-	dcmtk::log4cplus::Logger::getRoot().removeAllAppenders();
-	dcmtk::log4cplus::Logger::getRoot().addAppender(appender);
-}
-
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
                                            vector<LogicalType> &return_types, vector<string> &names) {
 	if (input.inputs.empty()) {
-		throw InvalidInputException("read_dicom requires at least one argument");
+		throw InvalidInputException("read_dicom requires at least one argument.");
 	}
 
 	RedirectDCMTKLogsToDuckDB(context);
@@ -53,6 +48,8 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 	for (const auto &kv : input.named_parameters) {
 		if (StringUtil::Lower(kv.first) == "load_pixel_data") {
 			result->options.load_pixel_data = BooleanValue::Get(kv.second);
+		} else {
+			throw InvalidInputException("Unknown input parameter " + StringUtil::Lower(kv.first));
 		}
 	}
 
@@ -217,10 +214,16 @@ static void LoadInternal(ExtensionLoader &loader) {
 	read_dicom_func.cardinality = ReadDicomCardinality;
 	read_dicom_func.table_scan_progress = ReadDicomProgress;
 
-	loader.RegisterFunction(MultiFileReader::CreateFunctionSet(read_dicom_func));
+	loader.RegisterFunction(read_dicom_func);
 
 	// Dicom tag type, casts and scalar functions
 	RegisterDicomTypes(loader);
+
+	// Dicom secret
+	RegisterDicomSecret(loader);
+
+	// Dicom Query-Retrieve functions
+	RegisterDicomQueryFunctions(loader);
 }
 
 void DicomExtension::Load(ExtensionLoader &loader) {

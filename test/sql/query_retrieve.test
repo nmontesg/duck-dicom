@@ -1,0 +1,121 @@
+# name: test/sql/query_retrieve.test
+# description: test dicom extension (DICOM query-retrieve)
+# group: [sql]
+
+require-env RUN_LOCAL_QR_TESTS
+
+require dicom
+
+# =================== QUERY_DICOM ===================
+
+statement ok
+CREATE OR REPLACE SECRET dicom_test_secret (
+	TYPE dicom,
+	HOST 'localhost',
+	PORT 4242,
+	AETITLE 'ORTHANC',
+	TLS_CA_FILE 'test/tls/duckdb/duckdb.crt',
+	TLS_KEY_FILE 'test/tls/duckdb/duckdb.key',
+	PEER_CA_FILE 'test/tls/duckdb/trusted.crt'
+);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', qr_level='patient', retrieve_keys=['PatientID']);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', match_keys={'Modality': 'MR'}, retrieve_keys=['StudyInstanceUID']);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', qr_level='study', match_keys={'Modality': 'MR'}, retrieve_keys=['StudyInstanceUID']);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', qr_level='series', match_keys={'Modality': 'MR'}, retrieve_keys=['SeriesInstanceUID', 'SeriesDescription']);
+
+statement ok
+FROM query_dicom(secret='dicom_test_secret', qr_level='image', match_keys={'Modality': 'MR'}, retrieve_keys=['ImagePositionPatient', 'SOPInstanceUID']);
+
+statement error
+FROM query_dicom(secret='dicom_test_secret', qr_level='wrong', match_keys={'Modality': 'MR'});
+----
+
+statement ok
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
+
+# missing all credentials
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
+----
+
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
+----
+
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
+----
+
+# wrong TLS credential filepaths
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='i/dont/exist',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
+----
+
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	tls_key_file='i/dont/exist',
+	peer_ca_file='test/tls/duckdb/trusted.crt',
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
+----
+
+statement error
+FROM query_dicom(
+	host='localhost',
+	port=4242,
+	aetitle='ORTHANC',
+	tls_ca_file='test/tls/duckdb/duckdb.crt',
+	tls_key_file='test/tls/duckdb/duckdb.key',
+	peer_ca_file='i/dont/exist',
+	match_keys={'Modality': 'MR'},
+	retrieve_keys=['StudyDescription']);
+----
