@@ -235,8 +235,6 @@ When specifying a `dicom` secret with TLS credentials, the following three paths
 
 ### `query_dicom` table function
 
-<!-- TODO update -->
-
 The `query_dicom` function execute DICOM C-FIND query requests directly from DuckDB to a remote DICOM peer
 (such as a PACS), and parses the responses directly into a DuckDB table. The result table has a single column named
 `dicom_response` of type `JSON`.

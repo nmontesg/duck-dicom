@@ -8,16 +8,16 @@ static vector<string> QUERY_RETRIEVE_LEVELS = {"PATIENT", "STUDY", "SERIES", "IM
 
 struct QueryDicomBindData : public TableFunctionData {
 	string host;
-	uint port;
+	unsigned int port;
 	string calledAETitle = "ANY-SCP";
 	string callingAETitle = "DUCKDB";
 	string abstractSyntax = UID_FINDStudyRootQueryRetrieveInformationModel;
 	string query_retrieve_level = "STUDY";
 	E_TransferSyntax networkTransferSyntax = EXS_Unknown;
 	T_DIMSE_BlockingMode blockMode = DIMSE_BLOCKING;
-	uint acseTimeout = 30;
-	uint dimseTimeout = 0;
-	uint maxReceivePDULength = ASC_DEFAULTMAXPDU;
+	unsigned int acseTimeout = 30;
+	unsigned int dimseTimeout = 0;
+	unsigned int maxReceivePDULength = ASC_DEFAULTMAXPDU;
 	T_ASC_ProtocolFamily protocolVersion = ASC_AF_Default;
 
 	bool useTls = false;

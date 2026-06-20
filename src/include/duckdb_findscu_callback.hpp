@@ -10,13 +10,13 @@ public:
 	void callback(T_DIMSE_C_FindRQ *, int &responseCount, T_DIMSE_C_FindRSP *,
 	              DcmDataset *responseIdentifiers) override;
 
-	uint GetNumResponses() {
+	unsigned int GetNumResponses() {
 		return num_responses;
 	};
 
 private:
 	Vector &response_vector;
-	uint num_responses;
+	unsigned int num_responses;
 };
 
 } // namespace duckdb
