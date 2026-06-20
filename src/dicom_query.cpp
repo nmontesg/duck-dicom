@@ -110,7 +110,7 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 		const auto &kv_secret = dynamic_cast<const KeyValueSecret &>(*secret_entry->secret);
 
 		result->host = kv_secret.TryGetValue("host", true).GetValue<string>();
-		result->port = kv_secret.TryGetValue("port", true).GetValue<uint>();
+		result->port = kv_secret.TryGetValue("port", true).GetValue<unsigned int>();
 		if (!kv_secret.TryGetValue("aetitle").IsNull()) {
 			result->calledAETitle = kv_secret.TryGetValue("aetitle", true).GetValue<string>();
 		}
