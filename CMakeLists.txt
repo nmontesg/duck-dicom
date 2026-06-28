@@ -16,6 +16,7 @@ include_directories(src/include)
 set(EXTENSION_SOURCES
   src/dicom_extension.cpp
   src/dicom_query.cpp
+  src/dicom_read.cpp
   src/dicom_secret.cpp
   src/dicom_types.cpp
   src/duckdb_findscu_callback.cpp
