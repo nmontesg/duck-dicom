@@ -125,11 +125,69 @@ FROM query_dicom(
 statement ok
 FROM retrieve_dicom('0', secret='dicom_test_secret', incoming_port=11112, qr_level='patient');
 
+# missing incoming port
+statement error
+FROM retrieve_dicom('0', secret='dicom_test_secret', qr_level='patient');
+----
+
 statement ok
 FROM retrieve_dicom('1.2.826.0.1.3680043.8.1055.1.20111103111148288.98361414.79379639', secret='dicom_test_secret', incoming_port=11112, qr_level='study');
+
+statement ok
+FROM retrieve_dicom('1.2.826.0.1.3680043.8.1055.1.20111103111148288.98361414.79379639', secret='dicom_test_secret', incoming_port=11112, qr_level='study', load_pixel_data=true);
 
 statement ok
 FROM retrieve_dicom('1.2.826.0.1.3680043.8.1055.1.20111103111201370.72665630.67534267', secret='dicom_test_secret', incoming_port=11112, qr_level='series');
 
 statement ok
+FROM retrieve_dicom('1.2.826.0.1.3680043.8.1055.1.20111103111201370.72665630.67534267', secret='dicom_test_secret', incoming_port=11112, qr_level='series', load_pixel_data=true);
+
+statement ok
 FROM retrieve_dicom('1.2.826.0.1.3680043.8.1055.1.20111103111201370.75618822.34437661', secret='dicom_test_secret', incoming_port=11112, qr_level='image');
+
+statement ok
+FROM retrieve_dicom('1.2.826.0.1.3680043.8.1055.1.20111103111201370.75618822.34437661', secret='dicom_test_secret', incoming_port=11112, qr_level='image', load_pixel_data=true);
+
+statement ok
+FROM retrieve_dicom(
+	'1.2.826.0.1.3680043.8.1055.1.20111103111201370.72665630.67534267',
+	'1.2.826.0.1.3680043.8.1055.1.20111103111204584.92619625.78204558',
+	secret='dicom_test_secret', incoming_port=11112, qr_level='series');
+
+statement ok
+FROM retrieve_dicom(
+	'1.2.826.0.1.3680043.8.1055.1.20111103111201370.72665630.67534267',
+	'1.2.826.0.1.3680043.8.1055.1.20111103111204584.92619625.78204558',
+	secret='dicom_test_secret', incoming_port=11112, qr_level='series', load_pixel_data=true);
+
+statement ok
+FROM retrieve_dicom(
+	[
+		'1.2.826.0.1.3680043.8.1055.1.20111103111201370.72665630.67534267',
+		'1.2.826.0.1.3680043.8.1055.1.20111103111204584.92619625.78204558'
+	],
+	secret='dicom_test_secret', incoming_port=11112, qr_level='series');
+
+statement ok
+FROM retrieve_dicom(
+	[
+		'1.2.826.0.1.3680043.8.1055.1.20111103111201370.72665630.67534267',
+		'1.2.826.0.1.3680043.8.1055.1.20111103111204584.92619625.78204558'
+	],
+	secret='dicom_test_secret', incoming_port=11112, qr_level='series', load_pixel_data=true);
+
+statement ok
+FROM retrieve_dicom(
+	[
+		'1.2.826.0.1.3680043.8.1055.1.20111103111201370.75618822.34437661',
+		'1.2.826.0.1.3680043.8.1055.1.20111103111201466.73275162.34636566'
+	],
+	secret='dicom_test_secret', incoming_port=11112, qr_level='image');
+
+statement ok
+FROM retrieve_dicom(
+	[
+		'1.2.826.0.1.3680043.8.1055.1.20111103111201370.75618822.34437661',
+		'1.2.826.0.1.3680043.8.1055.1.20111103111201466.73275162.34636566'
+	],
+	secret='dicom_test_secret', incoming_port=11112, qr_level='image', load_pixel_data=true);

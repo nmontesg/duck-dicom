@@ -85,7 +85,7 @@ setup_orthanc: generate_tls_certs stop_orthanc
 	rm $(ORTHANC_TMP_SEND_DATA)
 
 	curl -X PUT -u test_user:test_pwd \
-  		-d '{"AET":"DUCKDB","Host":"host.docker.internal","Port":11112, "UseDicomTls":true}' \
+  		-d '{"AET":"DUCKDB", "Host":"host.docker.internal", "Port":11112, "UseDicomTls":true}' \
   		$(ORTHANC_URL)/modalities/MOVESCU
 
 stop_orthanc:
