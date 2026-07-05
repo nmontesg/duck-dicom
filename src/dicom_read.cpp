@@ -31,7 +31,7 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 
 	// parse options
 	for (const auto &kv : input.named_parameters) {
-		if (StringUtil::Lower(kv.first) == "load_pixel_data") {
+		if (kv.first == "load_pixel_data") {
 			result->options.load_pixel_data = BooleanValue::Get(kv.second);
 		} else {
 			throw InvalidInputException("Unknown input parameter " + StringUtil::Lower(kv.first));

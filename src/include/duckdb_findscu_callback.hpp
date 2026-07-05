@@ -1,3 +1,5 @@
+#pragma once
+
 #include "dcmtk/dcmnet/dfindscu.h"
 #include "duckdb.hpp"
 

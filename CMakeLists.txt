@@ -17,8 +17,10 @@ set(EXTENSION_SOURCES
   src/dicom_extension.cpp
   src/dicom_query.cpp
   src/dicom_read.cpp
+  src/dicom_retrieve.cpp
   src/dicom_secret.cpp
   src/dicom_types.cpp
+  src/dicom_utils.cpp
   src/duckdb_findscu_callback.cpp
   src/duckdb_tls_options.cpp)
 

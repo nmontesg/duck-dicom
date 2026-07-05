@@ -3,47 +3,14 @@
 #include "dicom_extension.hpp"
 #include "dicom_query.hpp"
 #include "dicom_types.hpp"
+#include "dicom_utils.hpp"
 #include "duckdb_findscu_callback.hpp"
 #include "duckdb_tls_options.hpp"
 #include "duckdb.hpp"
-#include "duckdb/catalog/catalog_transaction.hpp"
-#include "duckdb/main/secret/secret_manager.hpp"
+
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
-
-void ParseMatchKeys(const Value &input_query, QueryDicomBindData &bind_data) {
-	if (input_query.IsNull()) {
-		return;
-	}
-	const auto &map_elements = ListValue::GetChildren(input_query);
-	for (const auto &element : map_elements) {
-		if (element.IsNull()) {
-			continue;
-		}
-		const vector<Value> &struct_children = StructValue::GetChildren(element);
-
-		string key = struct_children[0].ToString();
-		string val = struct_children[1].ToString();
-
-		const string overrideKey = key + "=" + val;
-		bind_data.query.push_back(overrideKey.c_str());
-	}
-}
-
-void ParseRetrieveKeys(const Value &input_query, QueryDicomBindData &bind_data) {
-	if (input_query.IsNull()) {
-		return;
-	}
-	const auto &map_elements = ListValue::GetChildren(input_query);
-	for (const auto &element : map_elements) {
-		if (element.IsNull()) {
-			continue;
-		}
-		const string retrieveKey = StringValue::Get(element);
-		bind_data.query.push_back(retrieveKey.c_str());
-	}
-}
 
 unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
                                             vector<LogicalType> &return_types, vector<string> &names) {
@@ -62,36 +29,36 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 		} else if (kv.first == "port") {
 			result->port = UIntegerValue::Get(kv.second);
 		} else if (kv.first == "aetitle") {
-			result->calledAETitle = StringValue::Get(kv.second);
+			result->called_ae_title = StringValue::Get(kv.second);
 		} else if (kv.first == "calling_aetitle") {
-			result->callingAETitle = StringValue::Get(kv.second);
+			result->calling_ae_title = StringValue::Get(kv.second);
 		} else if (kv.first == "qr_level") {
 			auto input_qr_level = StringValue::Get(kv.second);
-			auto it =
-			    find(QUERY_RETRIEVE_LEVELS.begin(), QUERY_RETRIEVE_LEVELS.end(), StringUtil::Upper(input_qr_level));
-			if (it == QUERY_RETRIEVE_LEVELS.end()) {
+			auto it = find(DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.begin(),
+			               DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.end(), StringUtil::Upper(input_qr_level));
+			if (it == DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.end()) {
 				throw InvalidInputException("Unknown Query/Retrieve level " + input_qr_level);
 			}
 			result->query_retrieve_level = StringUtil::Upper(input_qr_level);
 		} else if (kv.first == "acse_timeout") {
-			result->acseTimeout = UIntegerValue::Get(kv.second);
+			result->acse_timeout = UIntegerValue::Get(kv.second);
 		} else if (kv.first == "dimse_timeout") {
-			result->dimseTimeout = UIntegerValue::Get(kv.second);
+			result->dimse_timeout = UIntegerValue::Get(kv.second);
 		} else if (kv.first == "max_receive_pdu_length") {
-			result->maxReceivePDULength = UIntegerValue::Get(kv.second);
+			result->max_receive_pdu_length = UIntegerValue::Get(kv.second);
 		} else if (kv.first == "tls_key_file") {
-			result->tlsPrivateKeyCAFiles.first = StringValue::Get(kv.second);
-			result->useTls = true;
+			result->tls_private_key_ca_files.first = StringValue::Get(kv.second);
+			result->use_tls = true;
 		} else if (kv.first == "tls_ca_file") {
-			result->tlsPrivateKeyCAFiles.second = StringValue::Get(kv.second);
-			result->useTls = true;
+			result->tls_private_key_ca_files.second = StringValue::Get(kv.second);
+			result->use_tls = true;
 		} else if (kv.first == "peer_ca_file") {
-			result->peerCAFile = StringValue::Get(kv.second);
-			result->useTls = true;
+			result->peer_ca_file = StringValue::Get(kv.second);
+			result->use_tls = true;
 		} else if (kv.first == "match_keys") {
-			ParseMatchKeys(kv.second, *result);
+			DuckDBDicomUtils::ParseQueryMatchKeys(kv.second, *result);
 		} else if (kv.first == "retrieve_keys") {
-			ParseRetrieveKeys(kv.second, *result);
+			DuckDBDicomUtils::ParseQueryRetrieveKeys(kv.second, *result);
 		} else {
 			throw InvalidInputException("Unknown query_dicom argument " + kv.first);
 		}
@@ -101,58 +68,20 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 	result->query.push_back(qr_key.c_str());
 
 	if (use_secret) {
-		auto &secret_manager = SecretManager::Get(context);
-		auto transaction = CatalogTransaction::GetSystemCatalogTransaction(context);
-		auto secret_entry = secret_manager.GetSecretByName(transaction, secret_name);
-		if (!secret_entry) {
-			throw InvalidInputException("Could not find secret " + secret_name);
-		}
-		const auto &kv_secret = dynamic_cast<const KeyValueSecret &>(*secret_entry->secret);
-
-		result->host = kv_secret.TryGetValue("host", true).GetValue<string>();
-		result->port = kv_secret.TryGetValue("port", true).GetValue<unsigned int>();
-		if (!kv_secret.TryGetValue("aetitle").IsNull()) {
-			result->calledAETitle = kv_secret.TryGetValue("aetitle", true).GetValue<string>();
-		}
-		if (!kv_secret.TryGetValue("tls_key_file").IsNull()) {
-			result->tlsPrivateKeyCAFiles.first = kv_secret.TryGetValue("tls_key_file", true).GetValue<string>();
-			result->useTls = true;
-		}
-		if (!kv_secret.TryGetValue("tls_ca_file").IsNull()) {
-			result->tlsPrivateKeyCAFiles.second = kv_secret.TryGetValue("tls_ca_file", true).GetValue<string>();
-			result->useTls = true;
-		}
-		if (!kv_secret.TryGetValue("peer_ca_file").IsNull()) {
-			result->peerCAFile = kv_secret.TryGetValue("peer_ca_file", true).GetValue<string>();
-			result->useTls = true;
-		}
+		DuckDBDicomUtils::GetSecretParams<QueryDicomBindData>(context, secret_name, *result);
 	}
 
 	if (result->host.empty() || !result->port) {
 		throw InvalidInputException("Could not find DICOM peer host and/or port. Please pass a named DICOM secret or "
 		                            "specify host and port explicitly.");
 	}
-	if (result->useTls) {
-		if (result->tlsPrivateKeyCAFiles.first.empty()) {
-			throw InvalidInputException("TLS setup is missing private key file.");
-		}
-		if (result->tlsPrivateKeyCAFiles.second.empty()) {
-			throw InvalidInputException("TLS setup is missing certificate file.");
-		}
-		if (result->peerCAFile.empty()) {
-			throw InvalidInputException("TlS setup is missing peer certificate.");
-		}
 
-		auto &fs = FileSystem::GetFileSystem(context);
-		if (!fs.FileExists(result->tlsPrivateKeyCAFiles.first)) {
-			throw InvalidInputException("Could not find private key file " + result->tlsPrivateKeyCAFiles.first);
-		}
-		if (!fs.FileExists(result->tlsPrivateKeyCAFiles.second)) {
-			throw InvalidInputException("Could not find certificate file " + result->tlsPrivateKeyCAFiles.second);
-		}
-		if (!fs.FileExists(result->peerCAFile)) {
-			throw InvalidInputException("Could not find peer certificate file " + result->peerCAFile);
-		}
+	if (result->query.empty()) {
+		throw InvalidInputException("Could not process DICOM query. Please provide match or retrieve keys.");
+	}
+
+	if (result->use_tls) {
+		DuckDBDicomUtils::CheckTlsParams<QueryDicomBindData>(context, *result);
 	}
 
 	names.push_back("dicom_response");
@@ -181,49 +110,37 @@ void QueryDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk 
 
 	string dicom_logtype = "dicom";
 
-	OFCondition cond = find_scu.initializeNetwork(bind_data.acseTimeout);
+	OFCondition cond = find_scu.initializeNetwork(bind_data.acse_timeout);
 	if (cond.bad()) {
 		throw IOException("Could not initialize DICOM network.");
-		output.SetCardinality(0);
-		global_state.is_processed = true;
-		return;
 	}
 
-	DuckDBTlsOptions tlsOptions = DuckDBTlsOptions(NET_REQUESTOR, bind_data.tlsPrivateKeyCAFiles.first,
-	                                               bind_data.tlsPrivateKeyCAFiles.second, bind_data.peerCAFile);
-	if (bind_data.useTls) {
+	DuckDBTlsOptions tlsOptions = DuckDBTlsOptions(NET_REQUESTOR, bind_data.tls_private_key_ca_files.first,
+	                                               bind_data.tls_private_key_ca_files.second, bind_data.peer_ca_file);
+	if (bind_data.use_tls) {
 		cond = tlsOptions.createTransportLayer();
 		if (cond.bad()) {
 			throw IOException("Could not create secure transport layer.");
-			output.SetCardinality(0);
-			global_state.is_processed = true;
-			return;
 		}
 
 		cond = find_scu.setTransportLayer(tlsOptions.getTransportLayer());
 		if (cond.bad()) {
 			throw IOException("Could not set secure transport layer.");
-			output.SetCardinality(0);
-			global_state.is_processed = true;
-			return;
 		}
 	}
-	cond = find_scu.performQuery(bind_data.host.c_str(), bind_data.port, bind_data.callingAETitle.c_str(),
-	                             bind_data.calledAETitle.c_str(), bind_data.abstractSyntax.c_str(),
-	                             bind_data.networkTransferSyntax, bind_data.blockMode, bind_data.dimseTimeout,
-	                             bind_data.maxReceivePDULength, bind_data.useTls,
+	cond = find_scu.performQuery(bind_data.host.c_str(), bind_data.port, bind_data.calling_ae_title.c_str(),
+	                             bind_data.called_ae_title.c_str(), bind_data.abstract_syntax.c_str(),
+	                             bind_data.network_transfer_syntax, bind_data.block_mode, bind_data.dimse_timeout,
+	                             bind_data.max_receive_pdu_length, bind_data.use_tls,
 	                             // the following only work with the default callback, set to dummy values
 	                             false,    // abort association,
 	                             1,        // repeat count,
 	                             FEM_none, // extract responses,
 	                             false,    // cancel after N responses,
 	                             const_cast<OFList<OFString> *>(&(bind_data.query)), &findscu_callback, NULL, NULL,
-	                             NULL, bind_data.protocolVersion);
+	                             NULL, bind_data.protocol_version);
 	if (cond.bad()) {
 		throw IOException("Error performing C-FIND command.");
-		output.SetCardinality(findscu_callback.GetNumResponses());
-		global_state.is_processed = true;
-		return;
 	}
 
 	cond = find_scu.dropNetwork();
@@ -243,7 +160,7 @@ void QueryDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk 
 	global_state.is_processed = true;
 }
 
-void RegisterDicomQueryFunctions(ExtensionLoader &loader) {
+void RegisterDicomQuery(ExtensionLoader &loader) {
 	// query_dicom table function
 	TableFunction query_dicom_func("query_dicom", {}, QueryDicomFunc, QueryDicomFuncBind, QueryDicomGlobalInit);
 	query_dicom_func.named_parameters["secret"] = LogicalType::VARCHAR;

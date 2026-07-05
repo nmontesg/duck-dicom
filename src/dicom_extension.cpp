@@ -3,6 +3,7 @@
 #include "dicom_extension.hpp"
 #include "dicom_query.hpp"
 #include "dicom_read.hpp"
+#include "dicom_retrieve.hpp"
 #include "dicom_secret.hpp"
 #include "dicom_types.hpp"
 #include "duckdb.hpp"
@@ -21,8 +22,11 @@ static void LoadInternal(ExtensionLoader &loader) {
 	// Dicom secret
 	RegisterDicomSecret(loader);
 
-	// Dicom Query-Retrieve functions
-	RegisterDicomQueryFunctions(loader);
+	// Dicom Query function
+	RegisterDicomQuery(loader);
+
+	// Dicom Retrieve function
+	RegisterDicomRetrieve(loader);
 }
 
 void DicomExtension::Load(ExtensionLoader &loader) {
