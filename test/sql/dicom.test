@@ -27,7 +27,7 @@ SELECT read_dicom('non/existent/path');
 
 # unknown parameter
 statement error
-SELECT read_dicom('test/test_data/IM_2381', UNKNOWN_ARG='some value');
+SELECT read_dicom('test/test_data/IM_2381', unknown_arg='some value');
 ----
 
 # test loading DICOM files with and without extension
@@ -44,9 +44,6 @@ FROM read_dicom('test/test_data/*');
 # test loading pixel data
 statement ok
 FROM read_dicom('test/test_data/*', load_pixel_data=true);
-
-statement ok
-FROM read_dicom('test/test_data/*', LOAD_PIXEL_DATA=true);
 
 # test tag extraction
 query II

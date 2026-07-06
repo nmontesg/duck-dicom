@@ -1,3 +1,5 @@
+#pragma once
+
 #include "duckdb.hpp"
 #include "dcmtk/oflog/appender.h"
 #include "dcmtk/oflog/layout.h"

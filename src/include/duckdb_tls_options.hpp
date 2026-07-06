@@ -1,3 +1,5 @@
+#pragma once
+
 #include "dcmtk/dcmtls/tlsopt.h"
 #include "duckdb.hpp"
 
