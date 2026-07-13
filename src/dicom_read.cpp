@@ -1,4 +1,5 @@
 #include "dicom_read.hpp"
+#include "dicom_stream.hpp"
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmdata/dcistrmb.h"
@@ -91,25 +92,16 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 		path_data[i] = StringVector::AddString(path_vector, file_path);
 
 		// dicom_content column
-		auto handle = fs.OpenFile(file_path, FileOpenFlags::FILE_FLAGS_READ);
-		auto file_size = handle->GetFileSize();
-		auto buffer = std::unique_ptr<char[]>(new char[file_size]);
-		handle->Read(buffer.get(), file_size);
-
-		DcmInputBufferStream bufferStream;
-		bufferStream.setBuffer(buffer.get(), file_size);
-		bufferStream.setEos();
+		DuckDBDicomInputFileStream stream(fs, file_path);
 
 		DcmFileFormat fileformat;
 		OFCondition status;
 		if (!read_options.load_pixel_data) {
-			status = fileformat.readUntilTag(bufferStream, EXS_Unknown, EGL_noChange, DCM_MaxReadLength,
+			status = fileformat.readUntilTag(stream, EXS_Unknown, EGL_noChange, DCM_MaxReadLength,
 			                                 DcmTagKey(0x7FE0, 0x0010));
 		} else {
-			status = fileformat.read(bufferStream);
+			status = fileformat.read(stream);
 		}
-		bufferStream.releaseBuffer();
-		handle->Close();
 
 		if (status.good()) {
 			DcmDataset *dataset = fileformat.getDataset();
