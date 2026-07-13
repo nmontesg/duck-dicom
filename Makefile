@@ -26,7 +26,7 @@ configure_aws_profile:
 	aws configure set aws_secret_access_key $(MINIO_SECRET_KEY) --profile $(MINIO_PROFILE)
 
 setup_minio: download_test_data configure_aws_profile stop_minio
-	docker run -d \
+	podman run -d \
 		--name minio \
 		-p 9000:9000 \
 		-p 9001:9001 \
@@ -44,7 +44,7 @@ setup_minio: download_test_data configure_aws_profile stop_minio
 		s3 sync $(DATA_SOURCE) s3://dicom-test/test_dicom
 
 stop_minio:
-	docker rm -f -v minio
+	podman rm -f -v minio
 
 generate_tls_certs:
 	mkdir -p test/tls/orthanc test/tls/duckdb
@@ -61,7 +61,7 @@ generate_tls_certs:
 	cat test/tls/orthanc/orthanc.crt > test/tls/duckdb/trusted.crt
 
 setup_orthanc: generate_tls_certs stop_orthanc
-	docker run -d \
+	podman run -d \
 		--name orthanc \
 		-p 4242:4242 \
 		-p 8042:8042 \
@@ -89,6 +89,6 @@ setup_orthanc: generate_tls_certs stop_orthanc
   		$(ORTHANC_URL)/modalities/MOVESCU
 
 stop_orthanc:
-	docker rm -f -v orthanc
+	podman rm -f -v orthanc
 
 setup_test_services: setup_minio setup_orthanc
