@@ -13,6 +13,8 @@ require dicom
 
 require json
 
+require httpfs
+
 # =================== READ_DICOM unit tests ===================
 
 # at least one argument needed
@@ -44,6 +46,13 @@ FROM read_dicom('test/test_data/*');
 # test loading pixel data
 statement ok
 FROM read_dicom('test/test_data/*', load_pixel_data=true);
+
+# test reading from remote
+statement ok
+FROM read_dicom('s3://idc-open-data/05fe6a60-b69b-49fe-a231-c695c06062e7/*');
+
+statement ok
+FROM read_dicom('s3://idc-open-data/05fe6a60-b69b-49fe-a231-c695c06062e7/*', load_pixel_data=true);
 
 # test tag extraction
 query II
