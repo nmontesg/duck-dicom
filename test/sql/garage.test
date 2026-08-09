@@ -1,4 +1,4 @@
-# name: test/sql/minio.test
+# name: test/sql/garage.test
 # description: test dicom extension (reading from cloud)
 # group: [sql]
 
@@ -11,12 +11,12 @@ require httpfs
 # =================== READ_DICOM from S3 ===================
 
 statement ok
-CREATE SECRET minio_secret (
+CREATE SECRET garage_secret (
     TYPE s3,
     PROVIDER config,
-	ENDPOINT 'localhost:9000',
-    KEY_ID 'admin',
-    SECRET 'password123',
+	ENDPOINT 'localhost:3900',
+    KEY_ID 'GARAGEADMINACCESSKEY',
+    SECRET 'garagetestingsecretkey',
 	USE_SSL false,
 	URL_STYLE 'path'
 );
