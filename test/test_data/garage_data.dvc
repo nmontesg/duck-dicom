@@ -3,4 +3,4 @@ outs:
   size: 31752674
   nfiles: 135
   hash: md5
-  path: minio_data
+  path: garage_data

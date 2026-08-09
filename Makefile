@@ -7,11 +7,13 @@ EXT_CONFIG=${PROJ_DIR}extension_config.cmake
 # Include the Makefile from extension-ci-tools
 include extension-ci-tools/makefiles/duckdb_extension.Makefile
 
-MINIO_ENDPOINT = http://localhost:9000
-MINIO_ACCESS_KEY = admin
-MINIO_SECRET_KEY = password123
-MINIO_PROFILE = minio-testing
-DATA_SOURCE = ./test/test_data/minio_data
+GARAGE_ENDPOINT = http://localhost:3900
+GARAGE_ADMIN_ENDPOINT = http://localhost:3903
+GARAGE_ACCESS_KEY = GARAGEADMINACCESSKEY
+GARAGE_SECRET_KEY = garagetestingsecretkey
+GARAGE_BUCKET = dicom-test
+GARAGE_PROFILE = garage-testing
+DATA_SOURCE = ./test/test_data/garage_data
 
 ORTHANC_USER = test_user
 ORTHANC_PWD = test_pwd
@@ -22,29 +24,28 @@ download_test_data:
 	dvc pull
 
 configure_aws_profile:
-	aws configure set aws_access_key_id $(MINIO_ACCESS_KEY) --profile $(MINIO_PROFILE)
-	aws configure set aws_secret_access_key $(MINIO_SECRET_KEY) --profile $(MINIO_PROFILE)
+	aws configure set aws_access_key_id $(GARAGE_ACCESS_KEY) --profile $(GARAGE_PROFILE)
+	aws configure set aws_secret_access_key $(GARAGE_SECRET_KEY) --profile $(GARAGE_PROFILE)
 
-setup_minio: download_test_data configure_aws_profile stop_minio
+setup_garage: download_test_data configure_aws_profile stop_garage
 	podman run -d \
-		--name minio \
-		-p 9000:9000 \
-		-p 9001:9001 \
-		-e MINIO_ROOT_USER=$(MINIO_ACCESS_KEY) \
-		-e MINIO_ROOT_PASSWORD=$(MINIO_SECRET_KEY) \
-		quay.io/minio/minio:latest server --console-address ":9001" /data
+		--name garage \
+		-p 3900:3900 -p 3903:3903 \
+		-v ./test/test_data/garage.toml:/etc/garage.toml \
+		-e GARAGE_DEFAULT_ACCESS_KEY=$(GARAGE_ACCESS_KEY) \
+		-e GARAGE_DEFAULT_SECRET_KEY=$(GARAGE_SECRET_KEY) \
+		-e GARAGE_DEFAULT_BUCKET=$(GARAGE_BUCKET) \
+		dxflrs/garage:v2.3.0 \
+		/garage server --single-node --default-bucket
 
-	@echo "Waiting for MinIO to start..."
-	@until curl -s $(MINIO_ENDPOINT)/minio/health/live; do sleep 1; done
+	@echo "Waiting for Garage to start..."
+	@until curl -s $(GARAGE_ADMIN_ENDPOINT)/health; do sleep 1; done
 
-	aws --endpoint-url $(MINIO_ENDPOINT) --profile $(MINIO_PROFILE) \
-		s3 mb s3://dicom-test
+	aws --endpoint-url $(GARAGE_ENDPOINT) --profile $(GARAGE_PROFILE) \
+		s3 sync $(DATA_SOURCE) s3://$(GARAGE_BUCKET)/test_dicom
 
-	aws --endpoint-url $(MINIO_ENDPOINT) --profile $(MINIO_PROFILE) \
-		s3 sync $(DATA_SOURCE) s3://dicom-test/test_dicom
-
-stop_minio:
-	podman rm -f -v minio
+stop_garage:
+	podman rm -f -v garage
 
 generate_tls_certs:
 	mkdir -p test/tls/orthanc test/tls/duckdb
@@ -80,7 +81,7 @@ setup_orthanc: generate_tls_certs stop_orthanc
 	@echo "Waiting for Orthanc REST API to become available..."
 	@until curl -s -f -u $(ORTHANC_USER):$(ORTHANC_PWD) $(ORTHANC_URL)/system > /dev/null; do sleep 2; done
 
-	(cd ./test/test_data/minio_data && zip -r ../orthanc_data.zip .)
+	(cd ./test/test_data/garage_data && zip -r ../orthanc_data.zip .)
 	curl -X POST -u $(ORTHANC_USER):$(ORTHANC_PWD) $(ORTHANC_URL)/instances --data-binary @$(ORTHANC_TMP_SEND_DATA)
 	rm $(ORTHANC_TMP_SEND_DATA)
 
@@ -91,4 +92,4 @@ setup_orthanc: generate_tls_certs stop_orthanc
 stop_orthanc:
 	podman rm -f -v orthanc
 
-setup_test_services: setup_minio setup_orthanc
+setup_test_services: setup_garage setup_orthanc
