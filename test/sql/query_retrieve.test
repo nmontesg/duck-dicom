@@ -9,7 +9,7 @@ require dicom
 # =================== QUERY_DICOM ===================
 
 statement ok
-CREATE OR REPLACE SECRET dicom_test_secret (
+CREATE SECRET dicom_test_secret (
 	TYPE dicom,
 	HOST 'localhost',
 	PORT 4242,
