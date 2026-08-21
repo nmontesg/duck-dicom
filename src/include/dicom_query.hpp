@@ -1,8 +1,8 @@
 #pragma once
 
-#include "duckdb.hpp"
-#include "dicom_types.hpp"
-#include "dcmtk/dcmnet/diutil.h"
+#include "duckdb.hpp" // IWYU pragma: keep
+#include "dcmtk/dcmdata/dcuid.h"
+#include "dcmtk/dcmnet/dimse.h"
 
 namespace duckdb {
 

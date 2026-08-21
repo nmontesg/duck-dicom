@@ -1,7 +1,7 @@
-#include "dicom_utils.hpp"
-#include "duckdb.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk/dcmdata/dcdatset.h"
 #include "dcmtk/dcmdata/dcelem.h"
+#include "dicom_utils.hpp"
 
 namespace duckdb {
 
@@ -53,7 +53,7 @@ void DuckDBDicomUtils::ParseDicomDataset(const string &qr_level, const string &u
 		throw InvalidInputException("Unknow Query/Retrieve Level " + qr_level);
 	}
 	DcmElement *elem = DcmItem::newDicomElement(DcmTag(tag));
-	if (elem == NULL) {
+	if (elem == nullptr) {
 		throw InvalidInputException("Cannot create element for tag (%04x,%04x)", tag.getGroup(), tag.getElement());
 	}
 	if (elem->putString(uid.c_str()).bad()) {

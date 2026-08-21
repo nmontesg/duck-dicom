@@ -1,12 +1,9 @@
-#include "dicom_read.hpp"
-#include "dicom_stream.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
-#include "dcmtk/dcmdata/dcistrmb.h"
 #include "dcmtk/dcmdata/dcjson.h"
-#include "dcmtk/dcmdata/dcpath.h"
-#include "dcmtk/dcmdata/dcuid.h"
-#include "duckdb.hpp"
+#include "dicom_read.hpp"
+#include "dicom_stream.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {

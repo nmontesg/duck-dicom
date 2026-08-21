@@ -1,6 +1,6 @@
-#include "dicom_types.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk/dcmdata/dctag.h"
-#include "duckdb.hpp"
+#include "dicom_types.hpp"
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 

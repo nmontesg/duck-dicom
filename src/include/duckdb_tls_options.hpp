@@ -1,7 +1,7 @@
 #pragma once
 
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk/dcmtls/tlsopt.h"
-#include "duckdb.hpp"
 
 namespace duckdb {
 
@@ -15,7 +15,7 @@ public:
 		opt_peerCAFile = _trusted_ca_file.c_str();
 	};
 
-	~DuckDBTlsOptions() {};
+	~DuckDBTlsOptions() override {};
 
 	virtual OFCondition createTransportLayer();
 

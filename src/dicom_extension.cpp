@@ -1,14 +1,12 @@
 #define DUCKDB_EXTENSION_MAIN
 
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dicom_extension.hpp"
 #include "dicom_query.hpp"
 #include "dicom_read.hpp"
 #include "dicom_retrieve.hpp"
 #include "dicom_secret.hpp"
 #include "dicom_types.hpp"
-#include "duckdb.hpp"
-#include "duckdb/main/secret/secret_manager.hpp"
-#include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
 
@@ -41,7 +39,7 @@ std::string DicomExtension::Version() const {
 #ifdef EXT_VERSION_DICOM
 	return EXT_VERSION_DICOM;
 #else
-	return "0.1.0";
+	return "0.6.1";
 #endif
 }
 

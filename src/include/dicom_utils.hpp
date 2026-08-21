@@ -1,8 +1,7 @@
 #pragma once
 
-#include "duckdb.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dicom_query.hpp"
-#include "dicom_retrieve.hpp"
 #include "duckdb/catalog/catalog_transaction.hpp"
 #include "duckdb/main/secret/secret_manager.hpp"
 

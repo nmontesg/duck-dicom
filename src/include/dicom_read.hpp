@@ -1,6 +1,6 @@
 #pragma once
 
-#include "duckdb.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
 
 namespace duckdb {
 
@@ -18,8 +18,8 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &, TableFunctionBindInp
 
 struct ReadDicomGlobalState : public GlobalTableFunctionState {
 	std::mutex mutex;
-	int64_t num_files_left_to_read;
-	const int64_t total_files;
+	idx_t num_files_left_to_read;
+	const idx_t total_files;
 
 	explicit ReadDicomGlobalState(int64_t total_files)
 	    : GlobalTableFunctionState(), num_files_left_to_read(total_files), total_files(total_files) {

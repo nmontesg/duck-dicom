@@ -1,16 +1,16 @@
 #pragma once
 
-#include "duckdb.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk/oflog/appender.h"
 #include "dcmtk/oflog/layout.h"
-#include "dcmtk/oflog/oflog.h"
+#include "dcmtk/oflog/logger.h"
 #include "dcmtk/oflog/spi/logevent.h"
 
 namespace duckdb {
 
 class Dcmtk2DuckDBLogger : public dcmtk::log4cplus::Appender {
 public:
-	Dcmtk2DuckDBLogger(ClientContext *client_context) : dcmtk::log4cplus::Appender(), context(client_context) {
+	explicit Dcmtk2DuckDBLogger(ClientContext *client_context) : dcmtk::log4cplus::Appender(), context(client_context) {
 	}
 
 	~Dcmtk2DuckDBLogger() override {
@@ -48,7 +48,7 @@ private:
 	ClientContext *context;
 };
 
-static void RedirectDCMTKLogsToDuckDB(ClientContext &context) {
+inline static void RedirectDCMTKLogsToDuckDB(ClientContext &context) {
 	auto appender = dcmtk::log4cplus::SharedAppenderPtr(new Dcmtk2DuckDBLogger(&context));
 	dcmtk::log4cplus::Logger::getRoot().removeAllAppenders();
 	dcmtk::log4cplus::Logger::getRoot().addAppender(appender);
