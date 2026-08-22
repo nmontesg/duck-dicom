@@ -16,11 +16,5 @@
     "overlay-triplets": [
       "./extension-ci-tools/toolchains"
     ]
-  },
-  "overrides": [
-    {
-      "name": "dcmtk",
-      "version": "3.7.0"
-    }
-  ]
+  }
 }
