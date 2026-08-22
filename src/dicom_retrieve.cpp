@@ -500,30 +500,30 @@ OFCondition storeSCP(T_ASC_Association *assoc, T_DIMSE_Message *msg, T_ASC_Prese
 
 void RegisterDicomRetrieve(ExtensionLoader &loader) {
 	// retrieve_dicom table function
-	TableFunction retrieve_dicom_single_func("retrieve_dicom", {}, RetrieveDicomFunc, RetrieveDicomFuncSingleBind,
+	TableFunction retrieve_dicom_func("retrieve_dicom", {}, RetrieveDicomFunc, RetrieveDicomFuncSingleBind,
 	                                         RetrieveDicomGlobalInit);
-	retrieve_dicom_single_func.varargs = {LogicalType::VARCHAR};
+	retrieve_dicom_func.varargs = {LogicalType::VARCHAR};
 
-	TableFunction retrieve_dicom_list_func("retrieve_dicom", {LogicalType::LIST(LogicalType::VARCHAR)},
-	                                       RetrieveDicomFunc, RetrieveDicomFuncListBind, RetrieveDicomGlobalInit);
+	// TableFunction retrieve_dicom_list_func("retrieve_dicom", {LogicalType::LIST(LogicalType::VARCHAR)},
+	//                                        RetrieveDicomFunc, RetrieveDicomFuncListBind, RetrieveDicomGlobalInit);
 
-	for (auto *fn : {&retrieve_dicom_single_func, &retrieve_dicom_list_func}) {
-		fn->named_parameters["secret"] = LogicalType::VARCHAR;
-		fn->named_parameters["host"] = LogicalType::VARCHAR;
-		fn->named_parameters["port"] = LogicalType::UINTEGER;
-		fn->named_parameters["incoming_port"] = LogicalType::UINTEGER;
-		fn->named_parameters["aetitle"] = LogicalType::VARCHAR;
-		fn->named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
-		fn->named_parameters["qr_level"] = LogicalType::VARCHAR;
-		fn->named_parameters["acse_timeout"] = LogicalType::UINTEGER;
-		fn->named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
-		fn->named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
-		fn->named_parameters["tls_key_file"] = LogicalType::VARCHAR;
-		fn->named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
-		fn->named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
-		fn->named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
+	// for (auto *fn : {&retrieve_dicom_single_func}) {
+		retrieve_dicom_func.named_parameters["secret"] = LogicalType::VARCHAR;
+		retrieve_dicom_func.named_parameters["host"] = LogicalType::VARCHAR;
+		retrieve_dicom_func.named_parameters["port"] = LogicalType::UINTEGER;
+		retrieve_dicom_func.named_parameters["incoming_port"] = LogicalType::UINTEGER;
+		retrieve_dicom_func.named_parameters["aetitle"] = LogicalType::VARCHAR;
+		retrieve_dicom_func.named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
+		retrieve_dicom_func.named_parameters["qr_level"] = LogicalType::VARCHAR;
+		retrieve_dicom_func.named_parameters["acse_timeout"] = LogicalType::UINTEGER;
+		retrieve_dicom_func.named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
+		retrieve_dicom_func.named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
+		retrieve_dicom_func.named_parameters["tls_key_file"] = LogicalType::VARCHAR;
+		retrieve_dicom_func.named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
+		retrieve_dicom_func.named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
+		retrieve_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
 
-		CreateTableFunctionInfo retrieve_dicom_info(*fn);
+		CreateTableFunctionInfo retrieve_dicom_info(retrieve_dicom_func);
 		FunctionDescription retrieve_dicom_desc;
 		retrieve_dicom_desc.parameter_types = {LogicalType::VARCHAR,  LogicalType::VARCHAR,  LogicalType::UINTEGER,
 		                                       LogicalType::UINTEGER, LogicalType::VARCHAR,  LogicalType::VARCHAR,
@@ -542,8 +542,8 @@ void RegisterDicomRetrieve(ExtensionLoader &loader) {
 		retrieve_dicom_desc.categories = {"medical"};
 		retrieve_dicom_info.descriptions.push_back(retrieve_dicom_desc);
 
-		loader.RegisterFunction(*fn);
-	}
+		loader.RegisterFunction(retrieve_dicom_info);
+	// }
 }
 
 } // namespace duckdb

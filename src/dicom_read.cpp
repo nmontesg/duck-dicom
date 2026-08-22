@@ -156,7 +156,7 @@ void RegisterDicomRead(ExtensionLoader &loader) {
 	read_dicom_func.cardinality = ReadDicomCardinality;
 	read_dicom_func.table_scan_progress = ReadDicomProgress;
 
-	loader.RegisterFunction(read_dicom_func);
+	loader.RegisterFunction(read_dicom_info);
 }
 
 } // namespace duckdb

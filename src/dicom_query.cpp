@@ -212,7 +212,7 @@ void RegisterDicomQuery(ExtensionLoader &loader) {
 	query_dicom_desc.categories = {"medical"};
 	query_dicom_info.descriptions.push_back(query_dicom_desc);
 
-	loader.RegisterFunction(query_dicom_func);
+	loader.RegisterFunction(query_dicom_info);
 }
 
 } // namespace duckdb

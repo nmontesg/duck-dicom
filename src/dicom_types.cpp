@@ -181,7 +181,7 @@ void RegisterDicomTypes(ExtensionLoader &loader) {
 	group_desc.examples = {"SELECT tag_group('0008,01DA')"};
 	group_desc.categories = {"medical"};
 	group_info.descriptions.push_back(group_desc);
-	loader.RegisterFunction(group_func);
+	loader.RegisterFunction(group_info);
 
 	ScalarFunction elem_func("tag_element", {DICOM_TAG()}, LogicalType::VARCHAR, ElementScalarFunc);
 	CreateScalarFunctionInfo elem_info(elem_func);
@@ -191,7 +191,7 @@ void RegisterDicomTypes(ExtensionLoader &loader) {
 	elem_desc.examples = {"SELECT tag_element('0008,01DA')"};
 	elem_desc.categories = {"medical"};
 	elem_info.descriptions.push_back(elem_desc);
-	loader.RegisterFunction(elem_func);
+	loader.RegisterFunction(elem_info);
 
 	ScalarFunction name_func("tag_name", {DICOM_TAG()}, LogicalType::VARCHAR, TagNameScalarFunc);
 	CreateScalarFunctionInfo name_info(name_func);
@@ -201,7 +201,7 @@ void RegisterDicomTypes(ExtensionLoader &loader) {
 	name_desc.examples = {"SELECT tag_name('0008,0008')"};
 	name_desc.categories = {"medical"};
 	name_info.descriptions.push_back(name_desc);
-	loader.RegisterFunction(name_func);
+	loader.RegisterFunction(name_info);
 }
 
 } // namespace duckdb
