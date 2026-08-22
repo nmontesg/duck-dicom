@@ -28,4 +28,4 @@ jobs:
       duckdb_version: v1.5.5
       ci_tools_version: v1.5.5
       extension_name: dicom
-      format_checks: 'format'
+      format_checks: 'format;tidy'

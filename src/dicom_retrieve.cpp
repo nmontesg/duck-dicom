@@ -480,7 +480,7 @@ OFCondition storeSCP(T_ASC_Association *assoc, T_DIMSE_Message *msg, T_ASC_Prese
 	jsonStream.clear();
 	DcmJsonFormatCompact format;
 	if (!load_pixel_data) {
-		dset->remove(DcmTagKey(0x7FE0, 0x0010));
+		delete dset->remove(DcmTagKey(0x7FE0, 0x0010));
 	}
 	dset->writeJson(jsonStream, format);
 

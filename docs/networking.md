@@ -154,6 +154,7 @@ level at which the data is retrieved is controlled through the `qr_level` parame
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
+| `ids` | `VARCHAR` | The patient ID(s), study, series or SOP instance UID(s) of the datasets to retrieve. | Yes |
 | `host` | `VARCHAR` | The IP address or hostname of the remote DICOM Application Entity (AE). | Yes |
 | `port` | `UINTEGER` | The DICOM network port of the remote DICOM peer. | Yes |
 | `incoming port` | `UINTEGER` | The DICOM network port for the incoming connection initiated by the peer. | Yes |
@@ -193,7 +194,7 @@ FROM retrieve_dicom(
     '1.2.826.0.1.3680043.8.1055.1.20111103111148288.98361414.79379639',
     secret='dicom_test_secret', incoming_port=11112, qr_level='study', load_pixel_data=true);
 
--- retrieve a couple of series
+-- retrieve several series
 FROM retrieve_dicom(
     '1.2.826.0.1.3680043.8.1055.1.20111103111201370.72665630.67534267',
     '1.2.826.0.1.3680043.8.1055.1.20111103111204584.92619625.78204558',
