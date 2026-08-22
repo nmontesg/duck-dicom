@@ -501,49 +501,42 @@ OFCondition storeSCP(T_ASC_Association *assoc, T_DIMSE_Message *msg, T_ASC_Prese
 void RegisterDicomRetrieve(ExtensionLoader &loader) {
 	// retrieve_dicom table function
 	TableFunction retrieve_dicom_func("retrieve_dicom", {}, RetrieveDicomFunc, RetrieveDicomFuncSingleBind,
-	                                         RetrieveDicomGlobalInit);
+	                                  RetrieveDicomGlobalInit);
 	retrieve_dicom_func.varargs = {LogicalType::VARCHAR};
+	retrieve_dicom_func.named_parameters["secret"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["host"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["port"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["incoming_port"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["aetitle"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["qr_level"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["acse_timeout"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["tls_key_file"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
 
-	// TableFunction retrieve_dicom_list_func("retrieve_dicom", {LogicalType::LIST(LogicalType::VARCHAR)},
-	//                                        RetrieveDicomFunc, RetrieveDicomFuncListBind, RetrieveDicomGlobalInit);
+	CreateTableFunctionInfo retrieve_dicom_info(retrieve_dicom_func);
+	FunctionDescription retrieve_dicom_desc;
+	retrieve_dicom_desc.parameter_types = {
+	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::UINTEGER, LogicalType::UINTEGER, LogicalType::VARCHAR,
+	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::UINTEGER, LogicalType::UINTEGER, LogicalType::UINTEGER,
+	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::VARCHAR,  LogicalType::BOOLEAN};
+	retrieve_dicom_desc.parameter_names = {
+	    "secret",          "host",        "port",         "incoming_port", "aetitle",
+	    "calling_aetitle", "qr_level",    "acse_timeout", "dimse_output",  "max_receive_pdu_length",
+	    "tls_key_file",    "tls_ca_file", "peer_ca_file"};
+	retrieve_dicom_desc.description = "Retrieve DICOM data from remote modalities using C-MOVE commands";
+	retrieve_dicom_desc.examples = {
+	    "FROM retrieve_dicom('1.3.54.24.5...', host='localhost', port=4242, incoming_port=11112, "
+	    "qr_level='study');",
+	    "FROM retrieve_dicom(['1.95.3...', '1.56.7...'], secret='my_dicom_conn_secret', qr_level='series');"};
+	retrieve_dicom_desc.categories = {"medical"};
+	retrieve_dicom_info.descriptions.push_back(retrieve_dicom_desc);
 
-	// for (auto *fn : {&retrieve_dicom_single_func}) {
-		retrieve_dicom_func.named_parameters["secret"] = LogicalType::VARCHAR;
-		retrieve_dicom_func.named_parameters["host"] = LogicalType::VARCHAR;
-		retrieve_dicom_func.named_parameters["port"] = LogicalType::UINTEGER;
-		retrieve_dicom_func.named_parameters["incoming_port"] = LogicalType::UINTEGER;
-		retrieve_dicom_func.named_parameters["aetitle"] = LogicalType::VARCHAR;
-		retrieve_dicom_func.named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
-		retrieve_dicom_func.named_parameters["qr_level"] = LogicalType::VARCHAR;
-		retrieve_dicom_func.named_parameters["acse_timeout"] = LogicalType::UINTEGER;
-		retrieve_dicom_func.named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
-		retrieve_dicom_func.named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
-		retrieve_dicom_func.named_parameters["tls_key_file"] = LogicalType::VARCHAR;
-		retrieve_dicom_func.named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
-		retrieve_dicom_func.named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
-		retrieve_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
-
-		CreateTableFunctionInfo retrieve_dicom_info(retrieve_dicom_func);
-		FunctionDescription retrieve_dicom_desc;
-		retrieve_dicom_desc.parameter_types = {LogicalType::VARCHAR,  LogicalType::VARCHAR,  LogicalType::UINTEGER,
-		                                       LogicalType::UINTEGER, LogicalType::VARCHAR,  LogicalType::VARCHAR,
-		                                       LogicalType::VARCHAR,  LogicalType::UINTEGER, LogicalType::UINTEGER,
-		                                       LogicalType::UINTEGER, LogicalType::VARCHAR,  LogicalType::VARCHAR,
-		                                       LogicalType::VARCHAR,  LogicalType::BOOLEAN};
-		retrieve_dicom_desc.parameter_names = {
-		    "secret",          "host",        "port",         "incoming_port", "aetitle",
-		    "calling_aetitle", "qr_level",    "acse_timeout", "dimse_output",  "max_receive_pdu_length",
-		    "tls_key_file",    "tls_ca_file", "peer_ca_file"};
-		retrieve_dicom_desc.description = "Retrieve DICOM data from remote modalities using C-MOVE commands";
-		retrieve_dicom_desc.examples = {
-		    "FROM retrieve_dicom('1.3.54.24.5...', host='localhost', port=4242, incoming_port=11112, "
-		    "qr_level='study');",
-		    "FROM retrieve_dicom(['1.95.3...', '1.56.7...'], secret='my_dicom_conn_secret', qr_level='series');"};
-		retrieve_dicom_desc.categories = {"medical"};
-		retrieve_dicom_info.descriptions.push_back(retrieve_dicom_desc);
-
-		loader.RegisterFunction(retrieve_dicom_info);
-	// }
+	loader.RegisterFunction(retrieve_dicom_info);
 }
 
 } // namespace duckdb
