@@ -17,7 +17,6 @@
       "./extension-ci-tools/toolchains"
     ]
   },
-  "builtin-baseline": "7f3781e19cc7d4e4882a4caec01668c6f7b5c163",
   "overrides": [
     {
       "name": "dcmtk",
