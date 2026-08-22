@@ -1,13 +1,9 @@
-#include "dcmtk/dcmtls/tlsopt.h"
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk2duckdb_logger.hpp"
-#include "dicom_extension.hpp"
 #include "dicom_query.hpp"
-#include "dicom_types.hpp"
 #include "dicom_utils.hpp"
 #include "duckdb_findscu_callback.hpp"
 #include "duckdb_tls_options.hpp"
-#include "duckdb.hpp"
-
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
@@ -110,7 +106,7 @@ void QueryDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk 
 
 	string dicom_logtype = "dicom";
 
-	OFCondition cond = find_scu.initializeNetwork(bind_data.acse_timeout);
+	OFCondition cond = find_scu.initializeNetwork(static_cast<int>(bind_data.acse_timeout));
 	if (cond.bad()) {
 		throw IOException("Could not initialize DICOM network.");
 	}
@@ -128,17 +124,17 @@ void QueryDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk 
 			throw IOException("Could not set secure transport layer.");
 		}
 	}
-	cond = find_scu.performQuery(bind_data.host.c_str(), bind_data.port, bind_data.calling_ae_title.c_str(),
-	                             bind_data.called_ae_title.c_str(), bind_data.abstract_syntax.c_str(),
-	                             bind_data.network_transfer_syntax, bind_data.block_mode, bind_data.dimse_timeout,
-	                             bind_data.max_receive_pdu_length, bind_data.use_tls,
-	                             // the following only work with the default callback, set to dummy values
-	                             false,    // abort association,
-	                             1,        // repeat count,
-	                             FEM_none, // extract responses,
-	                             false,    // cancel after N responses,
-	                             const_cast<OFList<OFString> *>(&(bind_data.query)), &findscu_callback, NULL, NULL,
-	                             NULL, bind_data.protocol_version);
+	cond = find_scu.performQuery(
+	    bind_data.host.c_str(), bind_data.port, bind_data.calling_ae_title.c_str(), bind_data.called_ae_title.c_str(),
+	    bind_data.abstract_syntax.c_str(), bind_data.network_transfer_syntax, bind_data.block_mode,
+	    static_cast<int>(bind_data.dimse_timeout), bind_data.max_receive_pdu_length, bind_data.use_tls,
+	    // the following only work with the default callback, set to dummy values
+	    false,                                              // abort association
+	    1,                                                  // repeat count
+	    FEM_none,                                           // extract responses,
+	    false,                                              // cancel after N responses,
+	    const_cast<OFList<OFString> *>(&(bind_data.query)), // NOLINT(cppcoreguidelines-pro-type-const-cast)
+	    &findscu_callback, nullptr, nullptr, nullptr, bind_data.protocol_version);
 	if (cond.bad()) {
 		throw IOException("Error performing C-FIND command.");
 	}
@@ -216,7 +212,7 @@ void RegisterDicomQuery(ExtensionLoader &loader) {
 	query_dicom_desc.categories = {"medical"};
 	query_dicom_info.descriptions.push_back(query_dicom_desc);
 
-	loader.RegisterFunction(query_dicom_func);
+	loader.RegisterFunction(query_dicom_info);
 }
 
 } // namespace duckdb

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "duckdb.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk/dcmdata/dcistrma.h"
+#include "dcmtk/ofstd/offile.h"
 
 namespace duckdb {
 
@@ -20,24 +21,24 @@ public:
 		}
 	}
 
-	virtual OFBool good() const override {
+	OFBool good() const override {
 		return handle != nullptr;
 		;
 	}
 
-	virtual OFCondition status() const override {
+	OFCondition status() const override {
 		return handle ? EC_Normal : EC_IllegalParameter;
 	}
 
-	virtual OFBool eos() override {
+	OFBool eos() override {
 		return (location >= file_size);
 	}
 
-	virtual offile_off_t avail() override {
-		return (location >= file_size ? 0 : file_size - location);
+	offile_off_t avail() override {
+		return (location >= file_size ? 0 : static_cast<offile_off_t>(file_size - location));
 	}
 
-	virtual offile_off_t read(void *buf, offile_off_t buflen) override {
+	offile_off_t read(void *buf, offile_off_t buflen) override {
 		if (!good() || eos() || buflen <= 0) {
 			return 0;
 		}
@@ -49,7 +50,7 @@ public:
 		return buflen;
 	}
 
-	virtual offile_off_t skip(offile_off_t skiplen) override {
+	offile_off_t skip(offile_off_t skiplen) override {
 		if (!good() || eos() || skiplen <= 0) {
 			return 0;
 		}
@@ -60,8 +61,9 @@ public:
 		return skiplen;
 	}
 
-	virtual void putback(offile_off_t num) override {
-		location = (num > location ? 0 : location - num);
+	void putback(offile_off_t num) override {
+		offile_off_t location_long = static_cast<offile_off_t>(location);
+		location = (num > location_long ? 0 : location_long - num);
 	}
 
 private:
@@ -73,9 +75,9 @@ private:
 class DuckDBDicomInputFileStream : public DcmInputStream {
 public:
 	DuckDBDicomInputFileStream(FileSystem &fs, const string &fp) : DcmInputStream(&producer_), producer_(fs, fp) {};
-	virtual ~DuckDBDicomInputFileStream() {};
+	~DuckDBDicomInputFileStream() override {};
 
-	virtual DcmInputStreamFactory *newFactory() const override {
+	DcmInputStreamFactory *newFactory() const override {
 		return nullptr;
 	}
 

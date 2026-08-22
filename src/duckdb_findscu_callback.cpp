@@ -1,5 +1,5 @@
-#include "duckdb_findscu_callback.hpp"
 #include "dcmtk/dcmdata/dcjson.h"
+#include "duckdb_findscu_callback.hpp"
 
 namespace duckdb {
 

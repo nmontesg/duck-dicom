@@ -61,7 +61,7 @@ generate_tls_certs:
 	cat test/tls/duckdb/duckdb.crt > test/tls/orthanc/trusted.crt
 	cat test/tls/orthanc/orthanc.crt > test/tls/duckdb/trusted.crt
 
-setup_orthanc: generate_tls_certs stop_orthanc
+setup_orthanc: download_test_data generate_tls_certs stop_orthanc
 	podman run -d \
 		--name orthanc \
 		-p 4242:4242 \

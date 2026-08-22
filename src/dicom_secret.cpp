@@ -1,8 +1,9 @@
-#include "dicom_extension.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
+#include "dicom_secret.hpp"
 
 namespace duckdb {
 
-void CheckFileExists(KeyValueSecret &secret, FileSystem &fs, string paramName) {
+void CheckFileExists(KeyValueSecret &secret, FileSystem &fs, const string &paramName) {
 	auto filepath = secret.secret_map[paramName].ToString();
 	if (!fs.FileExists(filepath)) {
 		throw InvalidInputException("Unable to locate file: " + filepath);

@@ -49,6 +49,12 @@ FROM read_dicom('test/test_data/*', load_pixel_data=true);
 
 # test reading from remote
 statement ok
+CREATE SECRET empty_s3_secret (
+	TYPE S3,
+	PROVIDER config
+);
+
+statement ok
 FROM read_dicom('s3://idc-open-data/05fe6a60-b69b-49fe-a231-c695c06062e7/*');
 
 statement ok

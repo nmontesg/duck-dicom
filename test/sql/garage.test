@@ -17,6 +17,7 @@ CREATE SECRET garage_secret (
 	ENDPOINT 'localhost:3900',
     KEY_ID 'GARAGEADMINACCESSKEY',
     SECRET 'garagetestingsecretkey',
+	REGION 'garage',
 	USE_SSL false,
 	URL_STYLE 'path'
 );

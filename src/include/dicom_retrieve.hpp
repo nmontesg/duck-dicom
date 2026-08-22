@@ -1,9 +1,10 @@
 #pragma once
 
-#include "duckdb.hpp"
-#include "dicom_query.hpp"
+#include "duckdb.hpp" // IWYU pragma: keep
 #include "dicom_read.hpp"
-#include "dcmtk/dcmnet/diutil.h"
+#include "dcmtk/dcmdata/dcuid.h"
+#include "dcmtk/dcmdata/dcxfer.h"
+#include "dcmtk/dcmnet/dimse.h"
 
 namespace duckdb {
 
@@ -43,7 +44,7 @@ void RetrieveDicomFunc(ClientContext &, TableFunctionInput &, DataChunk &);
 struct RetrieveDicomMoveCallbackData {
 	Logger &logger;
 
-	RetrieveDicomMoveCallbackData(Logger &_logger) : logger(_logger) {};
+	explicit RetrieveDicomMoveCallbackData(Logger &_logger) : logger(_logger) {};
 };
 
 struct RetrieveSubOpCallbackData {

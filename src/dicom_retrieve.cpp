@@ -1,11 +1,9 @@
-#include "dicom_retrieve.hpp"
-#include "dicom_utils.hpp"
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmdata/dcjson.h"
-#include "dcmtk/dcmdata/dcmetinf.h"
 #include "dcmtk/dcmdata/dcobject.h"
-#include "dcmtk/dcmdata/dcdeftag.h"
+#include "dicom_retrieve.hpp"
+#include "dicom_utils.hpp"
 #include "duckdb_tls_options.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
@@ -139,14 +137,14 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 	OFString temp_str;
 	std::ostringstream oss;
 
-	T_ASC_Network *net = NULL;
-	T_ASC_Parameters *params = NULL;
-	T_ASC_Association *assoc = NULL;
+	T_ASC_Network *net = nullptr;
+	T_ASC_Parameters *params = nullptr;
+	T_ASC_Association *assoc = nullptr;
 
 	OFStandard::initializeNetwork();
 
-	OFCondition cond =
-	    ASC_initializeNetwork(NET_ACCEPTORREQUESTOR, bind_data.incoming_port, bind_data.acse_timeout, &net);
+	OFCondition cond = ASC_initializeNetwork(NET_ACCEPTORREQUESTOR, static_cast<int>(bind_data.incoming_port),
+	                                         static_cast<int>(bind_data.acse_timeout), &net);
 	if (cond.bad()) {
 		oss.clear();
 		oss << "cannot create network: " << DimseCondition::dump(temp_str, cond);
@@ -166,7 +164,7 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 		throw IOException("Could not create association parameters.");
 	}
 
-	ASC_setAPTitles(params, bind_data.calling_ae_title.c_str(), bind_data.called_ae_title.c_str(), NULL);
+	ASC_setAPTitles(params, bind_data.calling_ae_title.c_str(), bind_data.called_ae_title.c_str(), nullptr);
 	ASC_setProtocolFamily(params, dcmIncomingProtocolFamily.get());
 	DIC_NODENAME peerHost;
 	OFStandard::snprintf(peerHost, sizeof(peerHost), "%s:%d", bind_data.host.c_str(), bind_data.port);
@@ -229,10 +227,10 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 	req.DataSetType = DIMSE_DATASET_PRESENT;
 
 	/* set the destination to be me */
-	ASC_getAPTitles(assoc->params, req.MoveDestination, sizeof(req.MoveDestination), NULL, 0, NULL, 0);
+	ASC_getAPTitles(assoc->params, req.MoveDestination, sizeof(req.MoveDestination), nullptr, 0, nullptr, 0);
 	logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_INFO, "Sending move request to peer");
 	logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_DEBUG,
-	                DIMSE_dumpMessage(temp_str, req, DIMSE_OUTGOING, NULL, presentationContextID).c_str());
+	                DIMSE_dumpMessage(temp_str, req, DIMSE_OUTGOING, nullptr, presentationContextID).c_str());
 
 	unsigned int total_retrieved_datasets = 0;
 	auto uid_data = FlatVector::GetData<string_t>(uid_vector);
@@ -259,8 +257,8 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 		    bind_data.read_options.load_pixel_data, response_vector, total_retrieved_datasets);
 
 		cond = DIMSE_moveUser(assoc, presentationContextID, &req, &queryDataset, moveCallback, &moveCallbackData,
-		                      bind_data.block_mode, bind_data.dimse_timeout, net, subOpCallback, &subOpCallbackData,
-		                      &rsp, &statusDetailPtr, &responseIdsPtr);
+		                      bind_data.block_mode, static_cast<int>(bind_data.dimse_timeout), net, subOpCallback,
+		                      &subOpCallbackData, &rsp, &statusDetailPtr, &responseIdsPtr);
 
 		unsigned int start = total_retrieved_datasets;
 		unsigned int end = total_retrieved_datasets + subOpCallbackData.num_recv_datasets;
@@ -342,7 +340,7 @@ void moveCallback(void *callback_data, T_DIMSE_C_MoveRQ *request, int response_c
 }
 
 void subOpCallback(void *sub_op_callback_data, T_ASC_Network *a_net, T_ASC_Association **sub_assoc) {
-	if (a_net == NULL) {
+	if (a_net == nullptr) {
 		return;
 	}
 
@@ -351,7 +349,7 @@ void subOpCallback(void *sub_op_callback_data, T_ASC_Network *a_net, T_ASC_Assoc
 		callbackData = static_cast<RetrieveSubOpCallbackData *>(sub_op_callback_data);
 	}
 
-	if (*sub_assoc == NULL) {
+	if (*sub_assoc == nullptr) {
 		acceptSubAssoc(a_net, sub_assoc, callbackData->max_receive_pdu_length, callbackData->use_tls,
 		               callbackData->logger);
 	} else {
@@ -367,7 +365,7 @@ OFCondition acceptSubAssoc(T_ASC_Network *aNet, T_ASC_Association **assoc, unsig
 	const char *knownAbstractSyntaxes[] = {UID_VerificationSOPClass};
 	int numTransferSyntaxes = 1;
 	OFString temp_str;
-	OFCondition cond = ASC_receiveAssociation(aNet, assoc, maxReceivePDULength, NULL, NULL, useTls);
+	OFCondition cond = ASC_receiveAssociation(aNet, assoc, maxReceivePDULength, nullptr, nullptr, useTls);
 	if (cond.good()) {
 		logger.WriteLog("accept_sub_assoc", LogLevel::LOG_INFO, "Sub-association received");
 		std::ostringstream oss;
@@ -411,7 +409,8 @@ OFCondition subOpSCP(T_ASC_Association **sub_assoc, T_DIMSE_BlockingMode block_m
 		return DIMSE_NODATAAVAILABLE;
 	}
 
-	OFCondition cond = DIMSE_receiveCommand(*sub_assoc, block_mode, dimse_timeout, &presID, &msg, NULL);
+	OFCondition cond =
+	    DIMSE_receiveCommand(*sub_assoc, block_mode, static_cast<int>(dimse_timeout), &presID, &msg, nullptr);
 
 	if (cond == EC_Normal) {
 		switch (msg.CommandField) {
@@ -430,7 +429,7 @@ OFCondition subOpSCP(T_ASC_Association **sub_assoc, T_DIMSE_BlockingMode block_m
 			logger.WriteLog("sub_op_scp", LogLevel::LOG_ERROR,
 			                "Expected C-STORE request but received DIMSE command 0x" + oss.str());
 			logger.WriteLog("sub_op_scp", LogLevel::LOG_DEBUG,
-			                DIMSE_dumpMessage(tempStr, msg, DIMSE_INCOMING, NULL, presID).c_str());
+			                DIMSE_dumpMessage(tempStr, msg, DIMSE_INCOMING, nullptr, presID).c_str());
 			break;
 		}
 	}
@@ -468,19 +467,20 @@ OFCondition storeSCP(T_ASC_Association *assoc, T_DIMSE_Message *msg, T_ASC_Prese
 	OFString temp_str;
 	logger.WriteLog("store_scp", LogLevel::LOG_INFO, "Received Store Request");
 	logger.WriteLog("store_scp", LogLevel::LOG_DEBUG,
-	                DIMSE_dumpMessage(temp_str, *req, DIMSE_INCOMING, NULL, presID).c_str());
+	                DIMSE_dumpMessage(temp_str, *req, DIMSE_INCOMING, nullptr, presID).c_str());
 
 	DcmFileFormat dcmff;
 	DcmDataset *dset = dcmff.getDataset();
 
-	cond = DIMSE_storeProvider(assoc, presID, req, NULL, true, &dset, nullptr, nullptr, blockMode, dimseTimeout);
+	cond = DIMSE_storeProvider(assoc, presID, req, nullptr, true, &dset, nullptr, nullptr, blockMode,
+	                           static_cast<int>(dimseTimeout));
 
 	thread_local std::ostringstream jsonStream;
 	jsonStream.str("");
 	jsonStream.clear();
 	DcmJsonFormatCompact format;
 	if (!load_pixel_data) {
-		dset->remove(DcmTagKey(0x7FE0, 0x0010));
+		delete dset->remove(DcmTagKey(0x7FE0, 0x0010));
 	}
 	dset->writeJson(jsonStream, format);
 
@@ -500,50 +500,43 @@ OFCondition storeSCP(T_ASC_Association *assoc, T_DIMSE_Message *msg, T_ASC_Prese
 
 void RegisterDicomRetrieve(ExtensionLoader &loader) {
 	// retrieve_dicom table function
-	TableFunction retrieve_dicom_single_func("retrieve_dicom", {}, RetrieveDicomFunc, RetrieveDicomFuncSingleBind,
-	                                         RetrieveDicomGlobalInit);
-	retrieve_dicom_single_func.varargs = {LogicalType::VARCHAR};
+	TableFunction retrieve_dicom_func("retrieve_dicom", {}, RetrieveDicomFunc, RetrieveDicomFuncSingleBind,
+	                                  RetrieveDicomGlobalInit);
+	retrieve_dicom_func.varargs = {LogicalType::VARCHAR};
+	retrieve_dicom_func.named_parameters["secret"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["host"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["port"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["incoming_port"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["aetitle"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["qr_level"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["acse_timeout"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
+	retrieve_dicom_func.named_parameters["tls_key_file"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
+	retrieve_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
 
-	TableFunction retrieve_dicom_list_func("retrieve_dicom", {LogicalType::LIST(LogicalType::VARCHAR)},
-	                                       RetrieveDicomFunc, RetrieveDicomFuncListBind, RetrieveDicomGlobalInit);
+	CreateTableFunctionInfo retrieve_dicom_info(retrieve_dicom_func);
+	FunctionDescription retrieve_dicom_desc;
+	retrieve_dicom_desc.parameter_types = {
+	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::UINTEGER, LogicalType::UINTEGER, LogicalType::VARCHAR,
+	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::UINTEGER, LogicalType::UINTEGER, LogicalType::UINTEGER,
+	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::VARCHAR,  LogicalType::BOOLEAN};
+	retrieve_dicom_desc.parameter_names = {
+	    "secret",          "host",        "port",         "incoming_port", "aetitle",
+	    "calling_aetitle", "qr_level",    "acse_timeout", "dimse_output",  "max_receive_pdu_length",
+	    "tls_key_file",    "tls_ca_file", "peer_ca_file"};
+	retrieve_dicom_desc.description = "Retrieve DICOM data from remote modalities using C-MOVE commands";
+	retrieve_dicom_desc.examples = {
+	    "FROM retrieve_dicom('1.3.54.24.5...', host='localhost', port=4242, incoming_port=11112, "
+	    "qr_level='study');",
+	    "FROM retrieve_dicom(['1.95.3...', '1.56.7...'], secret='my_dicom_conn_secret', qr_level='series');"};
+	retrieve_dicom_desc.categories = {"medical"};
+	retrieve_dicom_info.descriptions.push_back(retrieve_dicom_desc);
 
-	for (auto *fn : {&retrieve_dicom_single_func, &retrieve_dicom_list_func}) {
-		fn->named_parameters["secret"] = LogicalType::VARCHAR;
-		fn->named_parameters["host"] = LogicalType::VARCHAR;
-		fn->named_parameters["port"] = LogicalType::UINTEGER;
-		fn->named_parameters["incoming_port"] = LogicalType::UINTEGER;
-		fn->named_parameters["aetitle"] = LogicalType::VARCHAR;
-		fn->named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
-		fn->named_parameters["qr_level"] = LogicalType::VARCHAR;
-		fn->named_parameters["acse_timeout"] = LogicalType::UINTEGER;
-		fn->named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
-		fn->named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
-		fn->named_parameters["tls_key_file"] = LogicalType::VARCHAR;
-		fn->named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
-		fn->named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
-		fn->named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
-
-		CreateTableFunctionInfo retrieve_dicom_info(*fn);
-		FunctionDescription retrieve_dicom_desc;
-		retrieve_dicom_desc.parameter_types = {LogicalType::VARCHAR,  LogicalType::VARCHAR,  LogicalType::UINTEGER,
-		                                       LogicalType::UINTEGER, LogicalType::VARCHAR,  LogicalType::VARCHAR,
-		                                       LogicalType::VARCHAR,  LogicalType::UINTEGER, LogicalType::UINTEGER,
-		                                       LogicalType::UINTEGER, LogicalType::VARCHAR,  LogicalType::VARCHAR,
-		                                       LogicalType::VARCHAR,  LogicalType::BOOLEAN};
-		retrieve_dicom_desc.parameter_names = {
-		    "secret",          "host",        "port",         "incoming_port", "aetitle",
-		    "calling_aetitle", "qr_level",    "acse_timeout", "dimse_output",  "max_receive_pdu_length",
-		    "tls_key_file",    "tls_ca_file", "peer_ca_file"};
-		retrieve_dicom_desc.description = "Retrieve DICOM data from remote modalities using C-MOVE commands";
-		retrieve_dicom_desc.examples = {
-		    "FROM retrieve_dicom('1.3.54.24.5...', host='localhost', port=4242, incoming_port=11112, "
-		    "qr_level='study');",
-		    "FROM retrieve_dicom(['1.95.3...', '1.56.7...'], secret='my_dicom_conn_secret', qr_level='series');"};
-		retrieve_dicom_desc.categories = {"medical"};
-		retrieve_dicom_info.descriptions.push_back(retrieve_dicom_desc);
-
-		loader.RegisterFunction(*fn);
-	}
+	loader.RegisterFunction(retrieve_dicom_info);
 }
 
 } // namespace duckdb
