@@ -23,7 +23,6 @@ public:
 
 	OFBool good() const override {
 		return handle != nullptr;
-		;
 	}
 
 	OFCondition status() const override {
