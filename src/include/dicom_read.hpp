@@ -14,7 +14,7 @@ struct ReadDicomBindData : public TableFunctionData {
 };
 
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &, TableFunctionBindInput &, vector<LogicalType> &,
-                                           vector<string> &);
+                                           vector<Identifier> &);
 
 struct ReadDicomGlobalState : public GlobalTableFunctionState {
 	std::mutex mutex;

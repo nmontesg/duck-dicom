@@ -5,12 +5,13 @@
 #include "dicom_retrieve.hpp"
 #include "dicom_utils.hpp"
 #include "duckdb_tls_options.hpp"
+#include "duckdb/common/identifier.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
 
 unique_ptr<FunctionData> RetrieveDicomFuncSingleBind(ClientContext &context, TableFunctionBindInput &input,
-                                                     vector<LogicalType> &return_types, vector<string> &names) {
+                                                     vector<LogicalType> &return_types, vector<Identifier> &names) {
 	auto result = make_uniq<RetrieveDicomBindData>();
 	for (auto &val : input.inputs) {
 		if (val.IsNull()) {
@@ -23,7 +24,7 @@ unique_ptr<FunctionData> RetrieveDicomFuncSingleBind(ClientContext &context, Tab
 }
 
 unique_ptr<FunctionData> RetrieveDicomFuncListBind(ClientContext &context, TableFunctionBindInput &input,
-                                                   vector<LogicalType> &return_types, vector<string> &names) {
+                                                   vector<LogicalType> &return_types, vector<Identifier> &names) {
 	auto result = make_uniq<RetrieveDicomBindData>();
 	auto &map_elements = ListValue::GetChildren(input.inputs[0]);
 	for (auto &element : map_elements) {
@@ -37,7 +38,7 @@ unique_ptr<FunctionData> RetrieveDicomFuncListBind(ClientContext &context, Table
 }
 
 void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input, vector<LogicalType> &return_types,
-                           vector<string> &names, RetrieveDicomBindData &bind_data) {
+                           vector<Identifier> &names, RetrieveDicomBindData &bind_data) {
 	RedirectDCMTKLogsToDuckDB(context);
 
 	bool use_secret = false;
@@ -108,7 +109,7 @@ void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input
 		DuckDBDicomUtils::CheckTlsParams<RetrieveDicomBindData>(context, bind_data);
 	}
 
-	names.push_back(id_col_name);
+	names.push_back(Identifier(id_col_name));
 	return_types.push_back(LogicalType::VARCHAR);
 
 	names.push_back("dicom_response");
@@ -130,7 +131,7 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 	auto &logger = Logger::Get(context);
 
 	if (global_state.is_processed) {
-		output.SetCardinality(0);
+		output.SetChildCardinality(0);
 		return;
 	}
 
@@ -233,7 +234,7 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 	                DIMSE_dumpMessage(temp_str, req, DIMSE_OUTGOING, nullptr, presentationContextID).c_str());
 
 	unsigned int total_retrieved_datasets = 0;
-	auto uid_data = FlatVector::GetData<string_t>(uid_vector);
+	auto uid_data = FlatVector::GetDataMutable<string_t>(uid_vector);
 	for (auto &unique_id : bind_data.uids) {
 		oss.str("");
 		oss.clear();
@@ -329,7 +330,7 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 		logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING, oss.str());
 	}
 
-	output.SetCardinality(total_retrieved_datasets);
+	output.SetChildCardinality(total_retrieved_datasets);
 	global_state.is_processed = true;
 }
 
@@ -484,7 +485,7 @@ OFCondition storeSCP(T_ASC_Association *assoc, T_DIMSE_Message *msg, T_ASC_Prese
 	}
 	dset->writeJson(jsonStream, format);
 
-	auto response_data = FlatVector::GetData<string_t>(response_vector);
+	auto response_data = FlatVector::GetDataMutable<string_t>(response_vector);
 	response_data[req->MessageID - 1 + offset] = StringVector::AddString(response_vector, "{" + jsonStream.str() + "}");
 
 	num_responses = req->MessageID;

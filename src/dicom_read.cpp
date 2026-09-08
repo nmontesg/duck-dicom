@@ -5,12 +5,14 @@
 #include "dcmtk/dcmdata/dcjson.h"
 #include "dicom_read.hpp"
 #include "dicom_stream.hpp"
+#include "duckdb/common/identifier.hpp"
+#include "duckdb/common/vector/flat_vector.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
 
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
-                                           vector<LogicalType> &return_types, vector<string> &names) {
+                                           vector<LogicalType> &return_types, vector<Identifier> &names) {
 	if (input.inputs.empty()) {
 		throw InvalidInputException("read_dicom requires at least one argument.");
 	}
@@ -33,11 +35,11 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 		if (kv.first == "load_pixel_data") {
 			result->options.load_pixel_data = BooleanValue::Get(kv.second);
 		} else {
-			throw InvalidInputException("Unknown input parameter " + StringUtil::Lower(kv.first));
+			throw InvalidInputException("Unknown input parameter " + kv.first);
 		}
 	}
 
-	names.push_back("path");
+	names.push_back("filename");
 	return_types.push_back(LogicalType::VARCHAR);
 
 	names.push_back("dicom_content");
@@ -64,7 +66,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 
 	idx_t start_idx, end_idx;
 	if (!global_state.GetWorkItem(start_idx, end_idx)) {
-		output.SetCardinality(0);
+		output.SetChildCardinality(0);
 		return;
 	}
 
@@ -74,8 +76,8 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 	auto &path_vector = output.data[0];
 	auto &content_vector = output.data[1];
 
-	auto path_data = FlatVector::GetData<string_t>(path_vector);
-	auto content_data = FlatVector::GetData<string_t>(content_vector);
+	auto path_data = FlatVector::GetDataMutable<string_t>(path_vector);
+	auto content_data = FlatVector::GetDataMutable<string_t>(content_vector);
 
 	thread_local std::ostringstream jsonStream;
 
@@ -134,7 +136,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 		actual_count += 1;
 	}
 
-	output.SetCardinality(actual_count);
+	output.SetChildCardinality(actual_count);
 }
 
 unique_ptr<NodeStatistics> ReadDicomCardinality(ClientContext &context, const FunctionData *bind_data_p) {
@@ -155,7 +157,7 @@ double ReadDicomProgress(ClientContext &context, const FunctionData *bind_data_p
 }
 
 void RegisterDicomRead(ExtensionLoader &loader) {
-	TableFunction read_dicom_func("read_dicom", {LogicalType::VARCHAR}, ReadDicomFunc, ReadDicomFuncBind,
+	TableFunction read_dicom_func(Identifier("read_dicom"), {LogicalType::VARCHAR}, ReadDicomFunc, ReadDicomFuncBind,
 	                              ReadDicomGlobalInit, ReadDicomLocalInit);
 	read_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
 

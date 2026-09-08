@@ -23,4 +23,4 @@ CREATE SECRET garage_secret (
 );
 
 statement ok
-FROM read_dicom("s3://dicom-test/test_dicom/**");
+FROM read_dicom('s3://dicom-test/test_dicom/**');

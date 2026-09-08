@@ -35,7 +35,7 @@ struct QueryDicomGlobalState : public GlobalTableFunctionState {
 };
 
 unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &, TableFunctionBindInput &, vector<LogicalType> &,
-                                            vector<string> &);
+                                            vector<Identifier> &);
 unique_ptr<GlobalTableFunctionState> QueryDicomGlobalInit(ClientContext &, TableFunctionInitInput &);
 void QueryDicomFunc(ClientContext &, TableFunctionInput &, DataChunk &);
 
