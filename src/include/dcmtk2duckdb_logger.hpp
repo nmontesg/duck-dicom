@@ -5,6 +5,7 @@
 #include "dcmtk/oflog/layout.h"
 #include "dcmtk/oflog/logger.h"
 #include "dcmtk/oflog/spi/logevent.h"
+#include "duckdb/logging/logger.hpp"
 
 namespace duckdb {
 

@@ -16,7 +16,7 @@ the `dicom_content` column.
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| `path` | `VARCHAR` | Path to the DICOM file. |
+| `filename` | `VARCHAR` | Path to the DICOM file. |
 | `dicom_content` | `JSON` | JSON-rendered contents of the DICOM files. |
 
 **Examples:**

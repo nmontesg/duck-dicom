@@ -1,22 +1,22 @@
 #include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk/dcmdata/dctag.h"
 #include "dicom_types.hpp"
+#include "duckdb/common/vector/struct_vector.hpp"
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 
 namespace duckdb {
 
 LogicalType DICOM_TAG() {
-	auto type = LogicalType::STRUCT(
+	auto dicom_tag_type = LogicalType::STRUCT(
 	    {{"group", LogicalType(LogicalTypeId::USMALLINT)}, {"elem", LogicalType(LogicalTypeId::USMALLINT)}});
-	type.SetAlias("DICOM_TAG");
-	return type;
+	return dicom_tag_type.WithAlias("DICOM_TAG");
 }
 
 void DicomTagToVarchar(Vector &source, Vector &result, idx_t count) {
 	auto &source_children = StructVector::GetEntries(source);
-	auto &group_vector = *source_children[0];
-	auto &elem_vector = *source_children[1];
+	auto &group_vector = source_children[0];
+	auto &elem_vector = source_children[1];
 
 	BinaryExecutor::Execute<uint16_t, uint16_t, string_t>(group_vector, elem_vector, result, count,
 	                                                      [&](uint16_t group, uint16_t elem) {
@@ -33,21 +33,21 @@ bool ToVarcharCast(Vector &source, Vector &result, idx_t count, CastParameters &
 
 void VarcharToDicomTagCast(Vector &source, Vector &result, idx_t count) {
 	auto &children = StructVector::GetEntries(result);
-	auto &group_vector = *children[0];
-	auto &elem_vector = *children[1];
+	auto &group_vector = children[0];
+	auto &elem_vector = children[1];
 
 	UnifiedVectorFormat source_format;
-	source.ToUnifiedFormat(count, source_format);
+	source.ToUnifiedFormat(source_format);
 	auto source_data = UnifiedVectorFormat::GetData<string_t>(source_format);
 
 	group_vector.SetVectorType(VectorType::FLAT_VECTOR);
 	elem_vector.SetVectorType(VectorType::FLAT_VECTOR);
-	auto group_data = FlatVector::GetData<uint16_t>(group_vector);
-	auto elem_data = FlatVector::GetData<uint16_t>(elem_vector);
+	auto group_data = FlatVector::GetDataMutable<uint16_t>(group_vector);
+	auto elem_data = FlatVector::GetDataMutable<uint16_t>(elem_vector);
 
-	auto &result_validity = FlatVector::Validity(result);
-	auto &group_validity = FlatVector::Validity(group_vector);
-	auto &elem_validity = FlatVector::Validity(elem_vector);
+	auto &result_validity = FlatVector::ValidityMutable(result);
+	auto &group_validity = FlatVector::ValidityMutable(group_vector);
+	auto &elem_validity = FlatVector::ValidityMutable(elem_vector);
 
 	for (idx_t i = 0; i < count; i++) {
 		idx_t source_idx = source_format.sel->get_index(i);
@@ -128,7 +128,7 @@ bool FromVarcharCast(Vector &source, Vector &result, idx_t count, CastParameters
 
 void GroupScalarFunc(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto &tags_vector = StructVector::GetEntries(args.data[0]);
-	auto &group_vector = *tags_vector[0];
+	auto &group_vector = tags_vector[0];
 
 	UnaryExecutor::Execute<uint16_t, string_t>(group_vector, result, args.size(), [&](uint16_t group) {
 		char buf[5];
@@ -139,7 +139,7 @@ void GroupScalarFunc(DataChunk &args, ExpressionState &state, Vector &result) {
 
 void ElementScalarFunc(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto &tags_vector = StructVector::GetEntries(args.data[0]);
-	auto &elem_vector = *tags_vector[1];
+	auto &elem_vector = tags_vector[1];
 
 	UnaryExecutor::Execute<uint16_t, string_t>(elem_vector, result, args.size(), [&](uint16_t elem) {
 		char buf[5];
@@ -150,8 +150,8 @@ void ElementScalarFunc(DataChunk &args, ExpressionState &state, Vector &result) 
 
 void TagNameScalarFunc(DataChunk &args, ExpressionState &state, Vector &result) {
 	auto &tags_vector = StructVector::GetEntries(args.data[0]);
-	auto &group_vector = *tags_vector[0];
-	auto &elem_vector = *tags_vector[1];
+	auto &group_vector = tags_vector[0];
+	auto &elem_vector = tags_vector[1];
 
 	BinaryExecutor::Execute<uint16_t, uint16_t, string_t>(
 	    group_vector, elem_vector, result, args.size(), [&](uint16_t group, uint16_t elem) {

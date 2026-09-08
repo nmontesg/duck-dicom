@@ -4,12 +4,13 @@
 #include "dicom_utils.hpp"
 #include "duckdb_findscu_callback.hpp"
 #include "duckdb_tls_options.hpp"
+#include "duckdb/common/identifier.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
 
 unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
-                                            vector<LogicalType> &return_types, vector<string> &names) {
+                                            vector<LogicalType> &return_types, vector<Identifier> &names) {
 	RedirectDCMTKLogsToDuckDB(context);
 
 	auto result = make_uniq<QueryDicomBindData>();
@@ -96,7 +97,7 @@ void QueryDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk 
 	auto &global_state = data.global_state->Cast<QueryDicomGlobalState>();
 
 	if (global_state.is_processed) {
-		output.SetCardinality(0);
+		output.SetChildCardinality(0);
 		return;
 	}
 
@@ -152,7 +153,7 @@ void QueryDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk 
 		logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING, "Could not write back the TLS random seed.");
 	}
 
-	output.SetCardinality(findscu_callback.GetNumResponses());
+	output.SetChildCardinality(findscu_callback.GetNumResponses());
 	global_state.is_processed = true;
 }
 
