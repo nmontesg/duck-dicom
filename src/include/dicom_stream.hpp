@@ -5,6 +5,8 @@
 #include "dcmtk/ofstd/offile.h"
 #include "duckdb/storage/external_file_cache/caching_file_system.hpp"
 
+#define DEFAULT_BUFFER_SIZE 128
+
 namespace duckdb {
 
 class DuckDBDicomProducer : public DcmProducer {

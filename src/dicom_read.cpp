@@ -51,8 +51,12 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 }
 
 unique_ptr<GlobalTableFunctionState> ReadDicomGlobalInit(ClientContext &context, TableFunctionInitInput &input) {
+	Value batch_size_val;
+	size_t batch_size = (context.TryGetCurrentSetting(Identifier("read_dicom_work_size"), batch_size_val)
+	                         ? batch_size_val.GetValue<uint64_t>()
+	                         : DEFAULT_BATCH_SIZE);
 	auto &bind_data = input.bind_data->Cast<ReadDicomBindData>();
-	return make_uniq<ReadDicomGlobalState>(bind_data.files.size());
+	return make_uniq<ReadDicomGlobalState>(bind_data.files.size(), batch_size);
 }
 
 unique_ptr<LocalTableFunctionState> ReadDicomLocalInit(ExecutionContext &context, TableFunctionInitInput &input,
@@ -179,6 +183,15 @@ void RegisterDicomRead(ExtensionLoader &loader) {
 	read_dicom_func.table_scan_progress = ReadDicomProgress;
 
 	loader.RegisterFunction(read_dicom_info);
+
+	auto &config = DBConfig::GetConfig(loader.GetDatabaseInstance());
+	config.AddExtensionOption(Identifier("read_dicom_batch_size"),
+	                          "Number of files to read in each batch of read_dicom.", LogicalType::UINTEGER,
+	                          DEFAULT_BATCH_SIZE, nullptr, SetScope::SESSION);
+	config.AddExtensionOption(Identifier("read_dicom_internal_buffer_size"),
+	                          "The size of the internal buffer (in kB) used to cache remote read when calling "
+	                          "read_dicom over remote storage.",
+	                          LogicalType::UINTEGER, DEFAULT_BUFFER_SIZE, nullptr, SetScope::SESSION);
 }
 
 } // namespace duckdb
