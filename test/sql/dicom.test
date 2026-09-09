@@ -15,6 +15,29 @@ require json
 
 require httpfs
 
+# =================== DICOM extension settings ===================
+
+query IIIIIII
+FROM duckdb_settings() WHERE name = 'read_dicom_batch_size';
+----
+read_dicom_batch_size	64	Number of files to read in each batch of read_dicom.	UINTEGER	GLOBAL	[]	64
+
+statement error
+SET read_dicom_batch_size = -32;
+----
+
+statement error
+SET read_dicom_batch_size = invalid_string;
+----
+
+statement ok
+SET read_dicom_batch_size = 128;
+
+query IIIIIII
+FROM duckdb_settings() WHERE name = 'read_dicom_internal_buffer_size';
+----
+read_dicom_internal_buffer_size	128	The size of the internal buffer (in kB) used to cache remote read when calling read_dicom over remote storage.	UINTEGER	GLOBAL	[]	128
+
 # =================== READ_DICOM unit tests ===================
 
 # at least one argument needed

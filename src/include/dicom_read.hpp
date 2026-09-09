@@ -2,6 +2,8 @@
 
 #include "duckdb.hpp" // IWYU pragma: keep
 
+#define DEFAULT_BATCH_SIZE 64
+
 namespace duckdb {
 
 struct ReadDicomOptions {
@@ -20,9 +22,11 @@ struct ReadDicomGlobalState : public GlobalTableFunctionState {
 	std::mutex mutex;
 	idx_t num_files_left_to_read;
 	const idx_t total_files;
+	const size_t batch_size;
 
-	explicit ReadDicomGlobalState(int64_t total_files)
-	    : GlobalTableFunctionState(), num_files_left_to_read(total_files), total_files(total_files) {
+	explicit ReadDicomGlobalState(int64_t total_files, size_t batch_size)
+	    : GlobalTableFunctionState(), num_files_left_to_read(total_files), total_files(total_files),
+	      batch_size(batch_size) {
 	}
 
 	bool GetWorkItem(idx_t &start_idx, idx_t &end_idx) {
@@ -31,8 +35,7 @@ struct ReadDicomGlobalState : public GlobalTableFunctionState {
 			return false;
 		}
 		start_idx = total_files - num_files_left_to_read;
-		// TODO make the total number of files to read by one thread a setting
-		idx_t work_size = MinValue<idx_t>(num_files_left_to_read, 64);
+		idx_t work_size = MinValue<idx_t>(num_files_left_to_read, batch_size);
 		end_idx = start_idx + work_size;
 		num_files_left_to_read -= work_size;
 		return true;
