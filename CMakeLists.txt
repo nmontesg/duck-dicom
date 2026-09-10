@@ -17,6 +17,11 @@ link_libraries(Boost::locale)
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 
+if($ENV{DEVELOPMENT_VERSION})
+  message(STATUS "Compiling development version")
+  add_compile_definitions(INSPECT_READ_PERFORMANCE)
+endif()
+
 include_directories(src/include)
 
 set(EXTENSION_SOURCES

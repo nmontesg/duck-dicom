@@ -1,8 +1,13 @@
 #pragma once
 
 #include "duckdb.hpp" // IWYU pragma: keep
+#include <thread>
 
+#define READ_DICOM_BATCH_SIZE_SETTING "read_dicom_batch_size"
 #define DEFAULT_BATCH_SIZE 64
+
+#define READ_DICOM_INTERNAL_BUFFER_SIZE_SETTING "read_dicom_internal_buffer_size"
+#define DEFAULT_BUFFER_SIZE 128
 
 namespace duckdb {
 
@@ -22,11 +27,11 @@ struct ReadDicomGlobalState : public GlobalTableFunctionState {
 	std::mutex mutex;
 	idx_t num_files_left_to_read;
 	const idx_t total_files;
-	const size_t batch_size;
+	const size_t max_batch_size;
 
 	explicit ReadDicomGlobalState(int64_t total_files, size_t batch_size)
 	    : GlobalTableFunctionState(), num_files_left_to_read(total_files), total_files(total_files),
-	      batch_size(batch_size) {
+	      max_batch_size(batch_size) {
 	}
 
 	bool GetWorkItem(idx_t &start_idx, idx_t &end_idx) {
@@ -35,7 +40,7 @@ struct ReadDicomGlobalState : public GlobalTableFunctionState {
 			return false;
 		}
 		start_idx = total_files - num_files_left_to_read;
-		idx_t work_size = MinValue<idx_t>(num_files_left_to_read, batch_size);
+		idx_t work_size = MinValue<idx_t>(num_files_left_to_read, max_batch_size);
 		end_idx = start_idx + work_size;
 		num_files_left_to_read -= work_size;
 		return true;
@@ -47,7 +52,18 @@ struct ReadDicomGlobalState : public GlobalTableFunctionState {
 };
 
 struct ReadDicomLocalState : public LocalTableFunctionState {
-	explicit ReadDicomLocalState() : LocalTableFunctionState() {
+	vector<unsigned char> buffer;
+
+#ifdef INSPECT_READ_PERFORMANCE
+	uint64_t thread_id;
+#endif
+
+	explicit ReadDicomLocalState(size_t buf_size) : LocalTableFunctionState() {
+		buffer.resize(buf_size);
+
+#ifdef INSPECT_READ_PERFORMANCE
+		thread_id = std::hash<std::thread::id> {}(std::this_thread::get_id());
+#endif
 	}
 };
 
