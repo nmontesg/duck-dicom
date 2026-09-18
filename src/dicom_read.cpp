@@ -114,7 +114,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 			// unsupported SpecificCharacterSet are converted to UTF-8 using boost
 			const char* char_set_ptr = nullptr;
 			OFCondition find_char_set = dataset->findAndGetString(DcmTagKey(0x0008, 0x0005), char_set_ptr);
-			if (char_set_ptr != nullptr) {
+			if (find_char_set.good()) {
 				string char_set(char_set_ptr);
 				if (char_set == "ISO 2022 IR 100") {
 					dicom_content = boost::locale::conv::to_utf<char>(jsonStream.str(), "Latin1");
