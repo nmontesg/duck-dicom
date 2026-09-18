@@ -1,3 +1,4 @@
+#include "boost/locale/encoding.hpp"
 #include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
@@ -108,7 +109,23 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 			DcmJsonFormatCompact format;
 			dataset->writeJson(jsonStream, format);
 
-			content_data[i] = StringVector::AddString(content_vector, "{" + jsonStream.str() + "}");
+			string dicom_content;
+
+			// unsupported SpecificCharacterSet are converted to UTF-8 using boost
+			const char* char_set_ptr = nullptr;
+			OFCondition find_char_set = dataset->findAndGetString(DcmTagKey(0x0008, 0x0005), char_set_ptr);
+			if (char_set_ptr != nullptr) {
+				string char_set(char_set_ptr);
+				if (char_set == "ISO 2022 IR 100") {
+					dicom_content = boost::locale::conv::to_utf<char>(jsonStream.str(), "Latin1");
+				} else {
+					dicom_content = jsonStream.str();
+				}
+			} else {
+				dicom_content = jsonStream.str();
+			}
+
+			content_data[i] = StringVector::AddString(content_vector, "{" + dicom_content + "}");
 		} else {
 			auto &logger = Logger::Get(context);
 			logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING, "Could not read file " + file_path);

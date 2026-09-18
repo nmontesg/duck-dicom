@@ -1,9 +1,11 @@
 {
   "dependencies": [
+    "boost-locale",
     "curl",
     {
       "name": "dcmtk",
       "features": [
+        "iconv",
         "openssl"
       ]
     }
