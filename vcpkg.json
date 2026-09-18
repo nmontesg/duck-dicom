@@ -5,7 +5,6 @@
     {
       "name": "dcmtk",
       "features": [
-        "iconv",
         "openssl"
       ]
     }
