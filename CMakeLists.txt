@@ -6,7 +6,13 @@ project(${TARGET_NAME})
 set(CMAKE_CXX_STANDARD "17" CACHE STRING "C++ standard to enforce")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(
+  Boost
+  COMPONENTS locale
+  REQUIRED)
 find_package(DCMTK REQUIRED)
+
+link_libraries(Boost::locale)
 
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)

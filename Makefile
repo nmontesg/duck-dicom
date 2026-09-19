@@ -20,14 +20,11 @@ ORTHANC_PWD = test_pwd
 ORTHANC_URL   = http://localhost:8042
 ORTHANC_TMP_SEND_DATA = test/test_data/orthanc_data.zip
 
-download_test_data:
-	dvc pull
-
 configure_aws_profile:
 	aws configure set aws_access_key_id $(GARAGE_ACCESS_KEY) --profile $(GARAGE_PROFILE)
 	aws configure set aws_secret_access_key $(GARAGE_SECRET_KEY) --profile $(GARAGE_PROFILE)
 
-setup_garage: download_test_data configure_aws_profile stop_garage
+setup_garage: configure_aws_profile stop_garage
 	podman run -d \
 		--name garage \
 		-p 3900:3900 -p 3903:3903 \
@@ -61,7 +58,7 @@ generate_tls_certs:
 	cat test/tls/duckdb/duckdb.crt > test/tls/orthanc/trusted.crt
 	cat test/tls/orthanc/orthanc.crt > test/tls/duckdb/trusted.crt
 
-setup_orthanc: download_test_data generate_tls_certs stop_orthanc
+setup_orthanc: generate_tls_certs stop_orthanc
 	podman run -d \
 		--name orthanc \
 		-p 4242:4242 \

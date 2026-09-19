@@ -1,5 +1,6 @@
 {
   "dependencies": [
+    "boost-locale",
     "curl",
     {
       "name": "dcmtk",
