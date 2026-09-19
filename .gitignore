@@ -14,3 +14,4 @@ test/python/__pycache__/
 .gram
 *.crt
 *.key
+.gram
