@@ -4,10 +4,10 @@
 #include <thread>
 
 #define READ_DICOM_BATCH_SIZE_SETTING "read_dicom_batch_size"
-#define DEFAULT_BATCH_SIZE 64
+#define DEFAULT_BATCH_SIZE            64
 
 #define READ_DICOM_INTERNAL_BUFFER_SIZE_SETTING "read_dicom_internal_buffer_size"
-#define DEFAULT_BUFFER_SIZE 128
+#define DEFAULT_BUFFER_SIZE                     128
 
 namespace duckdb {
 

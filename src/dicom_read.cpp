@@ -8,8 +8,10 @@
 #include "duckdb/common/enums/order_preservation_type.hpp"
 #include "duckdb/common/identifier.hpp"
 #include "duckdb/common/vector/flat_vector.hpp"
+#include "duckdb/common/vector_size.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 #include "duckdb/storage/external_file_cache/caching_file_system.hpp"
+#include <string>
 
 namespace duckdb {
 
@@ -233,9 +235,16 @@ void RegisterDicomRead(ExtensionLoader &loader) {
 	loader.RegisterFunction(read_dicom_info);
 
 	auto &config = DBConfig::GetConfig(loader.GetDatabaseInstance());
-	config.AddExtensionOption(Identifier(READ_DICOM_BATCH_SIZE_SETTING),
-	                          "Number of files to read in each batch of read_dicom.", LogicalType::UINTEGER,
-	                          DEFAULT_BATCH_SIZE, nullptr, SetScope::SESSION);
+	config.AddExtensionOption(
+	    Identifier(READ_DICOM_BATCH_SIZE_SETTING), "Number of files to read in each batch of read_dicom.",
+	    LogicalType::UINTEGER, DEFAULT_BATCH_SIZE,
+	    [](ClientContext &context, SetScope scope, Value &parameter) {
+		    if (parameter.GetValue<int64_t>() > STANDARD_VECTOR_SIZE) {
+			    throw InvalidInputException(string(READ_DICOM_BATCH_SIZE_SETTING) + " cannot be greater than " +
+			                                std::to_string(STANDARD_VECTOR_SIZE));
+		    }
+	    },
+	    SetScope::SESSION);
 	config.AddExtensionOption(Identifier(READ_DICOM_INTERNAL_BUFFER_SIZE_SETTING),
 	                          "The size of the internal buffer (in kB) used to cache remote read when calling "
 	                          "read_dicom over remote storage.",
