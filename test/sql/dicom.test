@@ -33,6 +33,13 @@ SET read_dicom_batch_size = invalid_string;
 statement ok
 SET read_dicom_batch_size = 128;
 
+statement ok
+SET read_dicom_batch_size = 2048;
+
+statement error
+SET read_dicom_batch_size = 2049;
+----
+
 query IIIIIII
 FROM duckdb_settings() WHERE name = 'read_dicom_internal_buffer_size';
 ----
