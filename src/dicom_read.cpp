@@ -5,13 +5,7 @@
 #include "dcmtk/dcmdata/dcjson.h"
 #include "dicom_read.hpp"
 #include "dicom_stream.hpp"
-#include "duckdb/common/enums/order_preservation_type.hpp"
-#include "duckdb/common/identifier.hpp"
-#include "duckdb/common/vector/flat_vector.hpp"
-#include "duckdb/common/vector_size.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
-#include "duckdb/storage/external_file_cache/caching_file_system.hpp"
-#include <string>
 
 namespace duckdb {
 
@@ -75,7 +69,7 @@ unique_ptr<GlobalTableFunctionState> ReadDicomGlobalInit(ClientContext &context,
 	                         ? batch_size_val.GetValue<uint64_t>()
 	                         : DEFAULT_BATCH_SIZE);
 	auto &bind_data = input.bind_data->Cast<ReadDicomBindData>();
-	return make_uniq<ReadDicomGlobalState>(bind_data.files.size(), batch_size);
+	return make_uniq<ReadDicomGlobalState>(context, bind_data.files.size(), batch_size);
 }
 
 unique_ptr<LocalTableFunctionState> ReadDicomLocalInit(ExecutionContext &context, TableFunctionInitInput &input,
@@ -124,8 +118,6 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 
 	thread_local std::ostringstream jsonStream;
 
-	auto fs = CachingFileSystem::Get(context);
-
 	idx_t actual_count = 0;
 	for (idx_t i = 0; i < count; i++) {
 		idx_t file_index = start_idx + i;
@@ -135,7 +127,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 		path_data[i] = StringVector::AddString(path_vector, file_path);
 
 		// dicom_content column
-		DuckDBDicomInputFileStream stream(fs, file_path, local_state.buffer);
+		DuckDBDicomInputFileStream stream(global_state.filesystem, file_path, local_state.buffer);
 
 		DcmFileFormat fileformat;
 		OFCondition status;
