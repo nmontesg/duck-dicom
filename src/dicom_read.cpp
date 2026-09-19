@@ -5,9 +5,11 @@
 #include "dcmtk/dcmdata/dcjson.h"
 #include "dicom_read.hpp"
 #include "dicom_stream.hpp"
+#include "duckdb/common/enums/order_preservation_type.hpp"
 #include "duckdb/common/identifier.hpp"
 #include "duckdb/common/vector/flat_vector.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
+#include "duckdb/storage/external_file_cache/caching_file_system.hpp"
 
 namespace duckdb {
 
@@ -30,7 +32,7 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 	auto result = make_uniq<ReadDicomBindData>();
 	result->files = std::move(file_list);
 
-	// parse options
+	// read options
 	for (const auto &kv : input.named_parameters) {
 		if (kv.first == "load_pixel_data") {
 			result->options.load_pixel_data = BooleanValue::Get(kv.second);
@@ -81,7 +83,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 
 	thread_local std::ostringstream jsonStream;
 
-	auto &fs = FileSystem::GetFileSystem(context);
+	auto fs = CachingFileSystem::Get(context);
 
 	idx_t actual_count = 0;
 	for (idx_t i = 0; i < count; i++) {
@@ -160,6 +162,7 @@ void RegisterDicomRead(ExtensionLoader &loader) {
 	TableFunction read_dicom_func(Identifier("read_dicom"), {LogicalType::VARCHAR}, ReadDicomFunc, ReadDicomFuncBind,
 	                              ReadDicomGlobalInit, ReadDicomLocalInit);
 	read_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
+	read_dicom_func.order_preservation_type = OrderPreservationType::NO_ORDER;
 
 	CreateTableFunctionInfo read_dicom_info(read_dicom_func);
 	FunctionDescription read_dicom_desc;

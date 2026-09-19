@@ -31,7 +31,8 @@ struct ReadDicomGlobalState : public GlobalTableFunctionState {
 			return false;
 		}
 		start_idx = total_files - num_files_left_to_read;
-		idx_t work_size = MinValue<idx_t>(num_files_left_to_read, STANDARD_VECTOR_SIZE);
+		// TODO make the total number of files to read by one thread a setting
+		idx_t work_size = MinValue<idx_t>(num_files_left_to_read, 64);
 		end_idx = start_idx + work_size;
 		num_files_left_to_read -= work_size;
 		return true;
