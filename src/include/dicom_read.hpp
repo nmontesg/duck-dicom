@@ -1,6 +1,7 @@
 #pragma once
 
 #include "duckdb.hpp" // IWYU pragma: keep
+#include "duckdb/storage/external_file_cache/caching_file_system.hpp"
 #include <thread>
 
 #define READ_DICOM_BATCH_SIZE_SETTING "read_dicom_batch_size"
@@ -25,13 +26,14 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &, TableFunctionBindInp
 
 struct ReadDicomGlobalState : public GlobalTableFunctionState {
 	std::mutex mutex;
+	CachingFileSystem filesystem;
 	idx_t num_files_left_to_read;
 	const idx_t total_files;
 	const size_t max_batch_size;
 
-	explicit ReadDicomGlobalState(int64_t total_files, size_t batch_size)
-	    : GlobalTableFunctionState(), num_files_left_to_read(total_files), total_files(total_files),
-	      max_batch_size(batch_size) {
+	explicit ReadDicomGlobalState(ClientContext &contx, int64_t total_files, size_t batch_size)
+	    : GlobalTableFunctionState(), filesystem(CachingFileSystem::Get(contx)), num_files_left_to_read(total_files),
+	      total_files(total_files), max_batch_size(batch_size) {
 	}
 
 	bool GetWorkItem(idx_t &start_idx, idx_t &end_idx) {
