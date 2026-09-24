@@ -1,6 +1,7 @@
 <!-- markdownlint-disable MD041 -->
 # DICOM extension for DuckDB
 
+![GitHub Tag](https://img.shields.io/github/v/tag/nmontesg/duck-dicom)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/nmontesg/duck-dicom/MainDistributionPipeline.yml)
 ![GitHub License](https://img.shields.io/github/license/nmontesg/duck-dicom)
 
