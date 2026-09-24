@@ -1,4 +1,8 @@
+<!-- markdownlint-disable MD041 -->
 # DICOM extension for DuckDB
+
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/nmontesg/duck-dicom/MainDistributionPipeline.yml)
+![GitHub License](https://img.shields.io/github/license/nmontesg/duck-dicom)
 
 The `dicom` extension for DuckDB provides functionality to import and query medical imaging data (DICOM, Digital Imaging
 and Communication in Medicine) directly into DuckDB. It uses the powerful [DCMTK C++

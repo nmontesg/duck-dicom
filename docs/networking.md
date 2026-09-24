@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD041 -->
 # DICOM networking
 
 ## `DICOM` secret
@@ -57,6 +58,7 @@ SELECT * FROM query_dicom(
 
 **Parameters:**
 
+<!-- markdownlint-disable MD013 -->
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
 | `host` | `VARCHAR` | The IP address or hostname of the remote DICOM Application Entity (AE). | Yes |
@@ -71,6 +73,7 @@ SELECT * FROM query_dicom(
 | `max_receive_pdu_length` | `UINTEGER` | The maximum Protocol Data Unit (PDU) buffer size (in bytes) that the client is willing to accept per network transaction frame. Default is 16384 (16kB). | No |
 | `match_keys` | `MAP(VARCHAR, VARCHAR)` | A key-value struct representing the matching tags for the C-FIND request (e.g., `{'PatientName': 'John*', 'Modality': 'CT'}`). Default is empty. | No |
 | `retrieve_keys` | `LIST(VARCHAR)` | A list of extra tags to retrieve in the response (e.g. `['ProtocolName', 'StudyInstanceUID']`). Default is empty. | No |
+<!-- markdownlint-enable MD013 -->
 
 The `host`, `port`, `aetitle` and TLS-related fields can also be retrieved from a named DICOM secret:
 
@@ -152,6 +155,7 @@ level at which the data is retrieved is controlled through the `qr_level` parame
 
 **Parameters:**
 
+<!-- markdownlint-disable MD013 -->
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
 | `ids` | `VARCHAR` | The patient ID(s), study, series or SOP instance UID(s) of the datasets to retrieve. | Yes |
@@ -168,6 +172,7 @@ level at which the data is retrieved is controlled through the `qr_level` parame
 | `tls_key_file` | `VARCHAR` | Path to your local client private key file (.key) for tLS. | No |
 | `peer_ca_file` | `VARCHAR` | Path to the trusted Root Certificate Authority bundle to verify the peer. | No |
 | `load_pixel_data`| `BOOL` | Whether to import the pixel data. Default is false. | No |
+<!-- markdownlint-enable MD013 -->
 
 Similarly to `query_dicom`, The `host`, `port`, `aetitle` and TLS-related fields can also be retrieved from a named
 DICOM secret:
@@ -178,10 +183,12 @@ SELECT * FROM query_dicom('1.2.3...', ..., secret='my_dicom_secret', incoming_po
 
 **Return schema:**
 
+<!-- markdownlint-disable MD013 -->
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
 | `patient_id` or `[study,series,image]_instance_uid` | `VARCHAR` | The patient, study, series or SOP instance unique ID. |
 | `dicom_response` | `JSON` | A compact JSON object containing the DICOM dataset returned by the C-FIND match. |
+<!-- markdownlint-enable MD013 -->
 
 **Examples:**
 
