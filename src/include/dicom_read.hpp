@@ -61,7 +61,7 @@ struct ReadDicomLocalState : public LocalTableFunctionState {
 #endif
 
 	explicit ReadDicomLocalState(size_t buf_size) : LocalTableFunctionState() {
-		buffer.resize(buf_size);
+		buffer.resize(buf_size * 1024);
 
 #ifdef INSPECT_READ_PERFORMANCE
 		thread_id = std::hash<std::thread::id> {}(std::this_thread::get_id());

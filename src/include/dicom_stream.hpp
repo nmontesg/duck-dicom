@@ -21,6 +21,12 @@ public:
 		num_buf_reads_ = 0;
 		num_buf_reloads_ = 0;
 #endif
+
+		// initial buffer load
+		size_t fetch_len = std::min<size_t>(internal_buffer.size(), file_size);
+		FileBufferHandleGroup group = handle->Read(fetch_len, location);
+		group.CopyTo(data_ptr_cast<void>(internal_buffer.data()), fetch_len);
+		buffer_end = fetch_len;
 	}
 
 	~DuckDBDicomProducer() override {
@@ -75,7 +81,7 @@ public:
 			return buflen;
 		}
 
-// populate the buffer to serve this request (and hopefully following ones)
+		// populate the buffer to serve this request (and hopefully following ones)
 #ifdef INSPECT_READ_PERFORMANCE
 		num_buf_reloads_ += 1;
 #endif
@@ -85,6 +91,9 @@ public:
 		buffer_start = location;
 		buffer_end = buffer_start + fetch_len;
 
+#ifdef INSPECT_READ_PERFORMANCE
+		num_buf_reads_ += 1;
+#endif
 		memcpy(buf, internal_buffer.data(), buflen);
 		location += buflen;
 		return buflen;
