@@ -19,12 +19,18 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 
 	for (const auto &kv : input.named_parameters) {
 		if (kv.first == "secret") {
-			use_secret = true;
-			secret_name = StringValue::Get(kv.second);
+			if (!kv.second.IsNull()) {
+				use_secret = true;
+				secret_name = StringValue::Get(kv.second);
+			}
 		} else if (kv.first == "host") {
-			result->host = StringValue::Get(kv.second);
+			if (!kv.second.IsNull()) {
+				result->host = StringValue::Get(kv.second);
+			}
 		} else if (kv.first == "port") {
-			result->port = UIntegerValue::Get(kv.second);
+			if (!kv.second.IsNull()) {
+				result->port = UIntegerValue::Get(kv.second);
+			}
 		} else if (kv.first == "aetitle") {
 			result->called_ae_title = StringValue::Get(kv.second);
 		} else if (kv.first == "calling_aetitle") {
@@ -44,14 +50,20 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 		} else if (kv.first == "max_receive_pdu_length") {
 			result->max_receive_pdu_length = UIntegerValue::Get(kv.second);
 		} else if (kv.first == "tls_key_file") {
-			result->tls_private_key_ca_files.first = StringValue::Get(kv.second);
-			result->use_tls = true;
+			if (!kv.second.IsNull()) {
+				result->tls_private_key_ca_files.first = StringValue::Get(kv.second);
+				result->use_tls = true;
+			}
 		} else if (kv.first == "tls_ca_file") {
-			result->tls_private_key_ca_files.second = StringValue::Get(kv.second);
-			result->use_tls = true;
+			if (!kv.second.IsNull()) {
+				result->tls_private_key_ca_files.second = StringValue::Get(kv.second);
+				result->use_tls = true;
+			}
 		} else if (kv.first == "peer_ca_file") {
-			result->peer_ca_file = StringValue::Get(kv.second);
-			result->use_tls = true;
+			if (!kv.second.IsNull()) {
+				result->peer_ca_file = StringValue::Get(kv.second);
+				result->use_tls = true;
+			}
 		} else if (kv.first == "match_keys") {
 			DuckDBDicomUtils::ParseQueryMatchKeys(kv.second, *result);
 		} else if (kv.first == "retrieve_keys") {
@@ -158,58 +170,38 @@ void QueryDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk 
 }
 
 void RegisterDicomQuery(ExtensionLoader &loader) {
+	FunctionSignature query_dicom_signature;
+	// query_dicom_signature.AddPositionalOnly(Identifier("_uids"), LogicalType::VARCHAR);
+	query_dicom_signature.AddKeywordOnly(Identifier("secret"), LogicalType::VARCHAR, Value(LogicalType::SQLNULL));
+	query_dicom_signature.AddKeywordOnly(Identifier("host"), LogicalType::VARCHAR, Value(LogicalType::SQLNULL));
+	query_dicom_signature.AddKeywordOnly(Identifier("port"), LogicalType::UINTEGER, Value(LogicalType::SQLNULL));
+	query_dicom_signature.AddKeywordOnly(Identifier("aetitle"), LogicalType::VARCHAR, Value("ANY-SCP"));
+	query_dicom_signature.AddKeywordOnly(Identifier("calling_aetitle"), LogicalType::VARCHAR, Value("DUCKDB"));
+	query_dicom_signature.AddKeywordOnly(Identifier("qr_level"), LogicalType(LogicalTypeId::VARCHAR), Value("study"));
+	query_dicom_signature.AddKeywordOnly(Identifier("acse_timeout"), LogicalType::UINTEGER, Value(30));
+	query_dicom_signature.AddKeywordOnly(Identifier("dimse_timeout"), LogicalType::UINTEGER, Value(0));
+	query_dicom_signature.AddKeywordOnly(Identifier("max_receive_pdu_length"), LogicalType::UINTEGER,
+	                                     Value(ASC_DEFAULTMAXPDU));
+	query_dicom_signature.AddKeywordOnly(Identifier("tls_key_file"), LogicalType::VARCHAR, Value(LogicalType::SQLNULL));
+	query_dicom_signature.AddKeywordOnly(Identifier("tls_ca_file"), LogicalType::VARCHAR, Value(LogicalType::SQLNULL));
+	query_dicom_signature.AddKeywordOnly(Identifier("peer_ca_file"), LogicalType::VARCHAR, Value(LogicalType::SQLNULL));
+	query_dicom_signature.AddKeywordOnly(Identifier("match_keys"),
+	                                     LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR),
+	                                     Value::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR, {}, {}));
+	query_dicom_signature.AddKeywordOnly(Identifier("retrieve_keys"), LogicalType::LIST(LogicalType::VARCHAR),
+	                                     Value::LIST(LogicalType::VARCHAR, {}));
+
 	// query_dicom table function
-	TableFunction query_dicom_func("query_dicom", {}, QueryDicomFunc, QueryDicomFuncBind, QueryDicomGlobalInit);
-	query_dicom_func.named_parameters["secret"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["host"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["port"] = LogicalType::UINTEGER;
-	query_dicom_func.named_parameters["aetitle"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["qr_level"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["acse_timeout"] = LogicalType::UINTEGER;
-	query_dicom_func.named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
-	query_dicom_func.named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
-	query_dicom_func.named_parameters["tls_key_file"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
-	query_dicom_func.named_parameters["match_keys"] = LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR);
-	query_dicom_func.named_parameters["retrieve_keys"] = LogicalType::LIST(LogicalType::VARCHAR);
+	TableFunction query_dicom_func("query_dicom", query_dicom_signature, QueryDicomFunc, QueryDicomFuncBind,
+	                               QueryDicomGlobalInit);
 
 	CreateTableFunctionInfo query_dicom_info(query_dicom_func);
 	FunctionDescription query_dicom_desc;
-	query_dicom_desc.parameter_types = {LogicalType::VARCHAR,
-	                                    LogicalType::VARCHAR,
-	                                    LogicalType::UINTEGER,
-	                                    LogicalType::VARCHAR,
-	                                    LogicalType::VARCHAR,
-	                                    LogicalType::VARCHAR,
-	                                    LogicalType::UINTEGER,
-	                                    LogicalType::UINTEGER,
-	                                    LogicalType::UINTEGER,
-	                                    LogicalType::VARCHAR,
-	                                    LogicalType::VARCHAR,
-	                                    LogicalType::VARCHAR,
-	                                    LogicalType::MAP(LogicalType::VARCHAR, LogicalType::VARCHAR),
-	                                    LogicalType::LIST(LogicalType::VARCHAR)};
-	query_dicom_desc.parameter_names = {"secret",
-	                                    "host",
-	                                    "port",
-	                                    "aetitle",
-	                                    "calling_aetitle",
-	                                    "qr_level",
-	                                    "acse_timeout",
-	                                    "dimse_output",
-	                                    "max_receive_pdu_length",
-	                                    "tls_key_file",
-	                                    "tls_ca_file",
-	                                    "peer_ca_file",
-	                                    "match_keys",
-	                                    "retrieve_keys"};
 	query_dicom_desc.description = "Query remote DICOM nodes using C-FIND commands";
-	query_dicom_desc.examples = {
-	    "FROM query_dicom(host='localhost', port=4242, match_keys={'Modality': 'MR'}, "
-	    "retrieve_keys=['StudyInstanceUID']);",
-	    "FROM query_dicom(secret='my_dicom_conn_secret', qr_level='series', match_keys={'SeriesDate': '20070101'});"};
+	query_dicom_desc.examples = {"FROM query_dicom(host='localhost', port=4242, match_keys=MAP {'Modality': 'MR'}, "
+	                             "retrieve_keys=['StudyInstanceUID']);",
+	                             "FROM query_dicom(secret='my_dicom_conn_secret', qr_level='series', match_keys=MAP "
+	                             "{'SeriesDate': '20070101'});"};
 	query_dicom_desc.categories = {"medical"};
 	query_dicom_info.descriptions.push_back(query_dicom_desc);
 

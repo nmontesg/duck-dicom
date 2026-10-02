@@ -205,15 +205,17 @@ double ReadDicomProgress(ClientContext &context, const FunctionData *bind_data_p
 }
 
 void RegisterDicomRead(ExtensionLoader &loader) {
-	TableFunction read_dicom_func(Identifier("read_dicom"), {LogicalType::VARCHAR}, ReadDicomFunc, ReadDicomFuncBind,
+	FunctionSignature read_dicom_signature;
+	read_dicom_signature.AddParameter(Identifier("path"), LogicalType::VARCHAR);
+	read_dicom_signature.AddParameter(Identifier("load_pixel_data"), LogicalType::BOOLEAN, false,
+	                                  FunctionParameterKind::KEYWORD_ONLY);
+
+	TableFunction read_dicom_func(Identifier("read_dicom"), read_dicom_signature, ReadDicomFunc, ReadDicomFuncBind,
 	                              ReadDicomGlobalInit, ReadDicomLocalInit);
-	read_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
 	read_dicom_func.order_preservation_type = OrderPreservationType::NO_ORDER;
 
 	CreateTableFunctionInfo read_dicom_info(read_dicom_func);
 	FunctionDescription read_dicom_desc;
-	read_dicom_desc.parameter_types = {LogicalType::VARCHAR, LogicalType::BOOLEAN};
-	read_dicom_desc.parameter_names = {"path", "load_pixel_data"};
 	read_dicom_desc.description =
 	    "Load DICOM files into DuckDB. The contents of each file are loaded into a row in JSON format.";
 	read_dicom_desc.examples = {"SELECT * FROM read_dicom('/path/to/dicom_files/*');",
