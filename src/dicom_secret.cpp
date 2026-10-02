@@ -77,7 +77,7 @@ void RegisterDicomSecret(ExtensionLoader &loader) {
 
 	loader.RegisterSecretType(secret_type);
 
-	CreateSecretFunction dicom_secret_function = {"dicom", "config", CreateDicomSecretFunction};
+	CreateSecretFunction dicom_secret_function = {"dicom", Identifier("config"), CreateDicomSecretFunction};
 	dicom_secret_function.named_parameters["host"] = LogicalType::VARCHAR;
 	dicom_secret_function.named_parameters["port"] = LogicalType::UINTEGER;
 	dicom_secret_function.named_parameters["aetitle"] = LogicalType::VARCHAR;

@@ -1,7 +1,9 @@
 #include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk/dcmdata/dctag.h"
 #include "dicom_types.hpp"
+#include "duckdb/common/types.hpp"
 #include "duckdb/common/vector/struct_vector.hpp"
+#include "duckdb/function/function.hpp"
 #include "duckdb/function/scalar_function.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 
@@ -173,7 +175,10 @@ void RegisterDicomTypes(ExtensionLoader &loader) {
 	loader.RegisterCastFunction(DICOM_TAG(), LogicalType::VARCHAR, BoundCastInfo(ToVarcharCast), 1);
 	loader.RegisterCastFunction(LogicalType::VARCHAR, DICOM_TAG(), BoundCastInfo(FromVarcharCast), 1);
 
-	ScalarFunction group_func("tag_group", {DICOM_TAG()}, LogicalType::VARCHAR, GroupScalarFunc);
+	FunctionSignature group_func_signature;
+	group_func_signature.AddParameter(DICOM_TAG());
+	group_func_signature.SetReturnType(LogicalType::VARCHAR);
+	ScalarFunction group_func("tag_group", group_func_signature, GroupScalarFunc);
 	CreateScalarFunctionInfo group_info(group_func);
 	FunctionDescription group_desc;
 	group_desc.description =
@@ -183,7 +188,10 @@ void RegisterDicomTypes(ExtensionLoader &loader) {
 	group_info.descriptions.push_back(group_desc);
 	loader.RegisterFunction(group_info);
 
-	ScalarFunction elem_func("tag_element", {DICOM_TAG()}, LogicalType::VARCHAR, ElementScalarFunc);
+	FunctionSignature elem_func_signature;
+	elem_func_signature.AddParameter(DICOM_TAG());
+	elem_func_signature.SetReturnType(LogicalType::VARCHAR);
+	ScalarFunction elem_func("tag_element", elem_func_signature, ElementScalarFunc);
 	CreateScalarFunctionInfo elem_info(elem_func);
 	FunctionDescription elem_desc;
 	elem_desc.description =
@@ -193,7 +201,10 @@ void RegisterDicomTypes(ExtensionLoader &loader) {
 	elem_info.descriptions.push_back(elem_desc);
 	loader.RegisterFunction(elem_info);
 
-	ScalarFunction name_func("tag_name", {DICOM_TAG()}, LogicalType::VARCHAR, TagNameScalarFunc);
+	FunctionSignature name_func_signature;
+	name_func_signature.AddParameter(DICOM_TAG());
+	name_func_signature.SetReturnType(LogicalType::VARCHAR);
+	ScalarFunction name_func("tag_name", name_func_signature, TagNameScalarFunc);
 	CreateScalarFunctionInfo name_info(name_func);
 	FunctionDescription name_desc;
 	name_desc.description =
