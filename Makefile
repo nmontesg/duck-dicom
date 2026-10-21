@@ -26,7 +26,7 @@ configure_aws_profile:
 
 setup_garage: configure_aws_profile stop_garage
 	podman run -d \
-		--name garage \
+		--name garage-dicom \
 		-p 3900:3900 -p 3903:3903 \
 		-v ./test/test_data/garage.toml:/etc/garage.toml \
 		-e GARAGE_DEFAULT_ACCESS_KEY=$(GARAGE_ACCESS_KEY) \
@@ -42,7 +42,7 @@ setup_garage: configure_aws_profile stop_garage
 		s3 sync $(DATA_SOURCE) s3://$(GARAGE_BUCKET)/test_dicom
 
 stop_garage:
-	podman rm -f -v garage
+	podman rm -f -v garage-dicom
 
 generate_tls_certs:
 	mkdir -p test/tls/orthanc test/tls/duckdb
