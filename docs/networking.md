@@ -44,6 +44,7 @@ SELECT * FROM query_dicom(
     host = 'localhost',
     port = 4242,
     aetitle = 'ORTHANC',
+    calling_aetitle='DUCKDB',
     tls_ca_file = 'my/certificate.crt',
     tls_key_file = 'my/keyfile.key',
     peer_ca_file = 'trusted.crt',
@@ -64,6 +65,7 @@ SELECT * FROM query_dicom(
 | `host` | `VARCHAR` | The IP address or hostname of the remote DICOM Application Entity (AE). | Yes |
 | `port` | `UINTEGER` | The DICOM network port of the remote DICOM peer. | Yes |
 | `aetitle` | `VARCHAR` | The called Application Entity Title (AE Title) of the remote node. Default is `'ANY-SCP'`. | No |
+| `calling_aetitle` | `VARCHAR` | The Application Entity Title (AE Title) for DuckDB. Default is `'DUCKDB'`. | No |
 | `tls_ca_file` | `VARCHAR` | Path to your local client identity public certificate (.crt/.pem) for TLS. Default is empty. | No |
 | `tls_key_file` | `VARCHAR` | Path to your local client private key file (.key) for TLS. Default is empty. | No |
 | `peer_ca_file` | `VARCHAR` | Path to the trusted Root Certificate Authority bundle to verify the peer. Default is empty. | No |
