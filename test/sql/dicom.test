@@ -15,6 +15,36 @@ require json
 
 require httpfs
 
+# =================== DICOM extension settings ===================
+
+query IIIIIII
+FROM duckdb_settings() WHERE name = 'read_dicom_batch_size';
+----
+read_dicom_batch_size	64	Number of files to read in each batch of read_dicom.	UINTEGER	GLOBAL	[]	64
+
+statement error
+SET read_dicom_batch_size = -32;
+----
+
+statement error
+SET read_dicom_batch_size = invalid_string;
+----
+
+statement ok
+SET read_dicom_batch_size = 128;
+
+statement ok
+SET read_dicom_batch_size = 2048;
+
+statement error
+SET read_dicom_batch_size = 2049;
+----
+
+query IIIIIII
+FROM duckdb_settings() WHERE name = 'read_dicom_internal_buffer_size';
+----
+read_dicom_internal_buffer_size	128	The size of the internal buffer (in kB) used to cache remote read when calling read_dicom over remote storage.	UINTEGER	GLOBAL	[]	128
+
 # =================== READ_DICOM unit tests ===================
 
 # at least one argument needed
@@ -55,11 +85,14 @@ CREATE SECRET empty_s3_secret (
 );
 
 statement ok
-FROM read_dicom('s3://idc-open-data/000009a8-6fb2-479f-bc17-d5bfe559703d/f*');
+FROM read_dicom('s3://idc-open-data/02a7924f-4aee-4b39-b364-0543b539492f/09*');
+
+statement ok
+FROM read_dicom('s3://idc-open-data/02a7924f-4aee-4b39-b364-0543b539492f/09*', load_pixel_data=true);
 
 # test tag extraction
 query II
-SELECT path, dicom_content->'00080070'->'Value'
+SELECT filename, dicom_content->'00080070'->'Value'
 FROM read_dicom('test/test_data/IM_2381');
 ----
 test/test_data/IM_2381	["Philips Medical Systems"]

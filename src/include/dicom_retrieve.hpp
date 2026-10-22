@@ -5,6 +5,7 @@
 #include "dcmtk/dcmdata/dcuid.h"
 #include "dcmtk/dcmdata/dcxfer.h"
 #include "dcmtk/dcmnet/dimse.h"
+#include "duckdb/common/identifier.hpp"
 
 namespace duckdb {
 
@@ -33,10 +34,10 @@ struct RetrieveDicomBindData : public TableFunctionData {
 };
 
 unique_ptr<FunctionData> RetrieveDicomFuncSingleBind(ClientContext &, TableFunctionBindInput &, vector<LogicalType> &,
-                                                     vector<string> &);
+                                                     vector<Identifier> &);
 unique_ptr<FunctionData> RetrieveDicomFuncListBind(ClientContext &, TableFunctionBindInput &, vector<LogicalType> &,
-                                                   vector<string> &);
-void RetrieveDicomFuncBind(ClientContext &, TableFunctionBindInput &, vector<LogicalType> &, vector<string> &,
+                                                   vector<Identifier> &);
+void RetrieveDicomFuncBind(ClientContext &, TableFunctionBindInput &, vector<LogicalType> &, vector<Identifier> &,
                            RetrieveDicomBindData &);
 unique_ptr<GlobalTableFunctionState> RetrieveDicomGlobalInit(ClientContext &, TableFunctionInitInput &);
 void RetrieveDicomFunc(ClientContext &, TableFunctionInput &, DataChunk &);

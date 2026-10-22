@@ -1,10 +1,11 @@
 #include "duckdb.hpp" // IWYU pragma: keep
 #include "dicom_secret.hpp"
+#include "duckdb/common/identifier.hpp"
 
 namespace duckdb {
 
 void CheckFileExists(KeyValueSecret &secret, FileSystem &fs, const string &paramName) {
-	auto filepath = secret.secret_map[paramName].ToString();
+	auto filepath = secret.secret_map[Identifier(paramName)].ToString();
 	if (!fs.FileExists(filepath)) {
 		throw InvalidInputException("Unable to locate file: " + filepath);
 	}
@@ -76,7 +77,7 @@ void RegisterDicomSecret(ExtensionLoader &loader) {
 
 	loader.RegisterSecretType(secret_type);
 
-	CreateSecretFunction dicom_secret_function = {"dicom", "config", CreateDicomSecretFunction};
+	CreateSecretFunction dicom_secret_function = {"dicom", Identifier("config"), CreateDicomSecretFunction};
 	dicom_secret_function.named_parameters["host"] = LogicalType::VARCHAR;
 	dicom_secret_function.named_parameters["port"] = LogicalType::UINTEGER;
 	dicom_secret_function.named_parameters["aetitle"] = LogicalType::VARCHAR;

@@ -10,7 +10,7 @@
 namespace duckdb {
 
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunctionBindInput &input,
-                                           vector<LogicalType> &return_types, vector<string> &names) {
+                                           vector<LogicalType> &return_types, vector<Identifier> &names) {
 	if (input.inputs.empty()) {
 		throw InvalidInputException("read_dicom requires at least one argument.");
 	}
@@ -28,43 +28,70 @@ unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &context, TableFunction
 	auto result = make_uniq<ReadDicomBindData>();
 	result->files = std::move(file_list);
 
-	// parse options
+	// read options
 	for (const auto &kv : input.named_parameters) {
 		if (kv.first == "load_pixel_data") {
 			result->options.load_pixel_data = BooleanValue::Get(kv.second);
 		} else {
-			throw InvalidInputException("Unknown input parameter " + StringUtil::Lower(kv.first));
+			throw InvalidInputException("Unknown input parameter " + kv.first);
 		}
 	}
 
-	names.push_back("path");
+	names.push_back("filename");
 	return_types.push_back(LogicalType::VARCHAR);
 
 	names.push_back("dicom_content");
 	return_types.push_back(LogicalType::JSON());
 
+#ifdef INSPECT_READ_PERFORMANCE
+	names.push_back("thread_id");
+	return_types.push_back(LogicalType::UBIGINT);
+
+	names.push_back("read_ops");
+	return_types.push_back(LogicalType::UINTEGER);
+
+	names.push_back("num_direct_reads");
+	return_types.push_back(LogicalType::UINTEGER);
+
+	names.push_back("num_buffer_hits");
+	return_types.push_back(LogicalType::UINTEGER);
+
+	names.push_back("num_buffer_reloads");
+	return_types.push_back(LogicalType::UINTEGER);
+#endif
+
 	return std::move(result);
 }
 
 unique_ptr<GlobalTableFunctionState> ReadDicomGlobalInit(ClientContext &context, TableFunctionInitInput &input) {
+	Value batch_size_val;
+	size_t batch_size = (context.TryGetCurrentSetting(Identifier(READ_DICOM_BATCH_SIZE_SETTING), batch_size_val)
+	                         ? batch_size_val.GetValue<uint64_t>()
+	                         : DEFAULT_BATCH_SIZE);
 	auto &bind_data = input.bind_data->Cast<ReadDicomBindData>();
-	return make_uniq<ReadDicomGlobalState>(bind_data.files.size());
+	return make_uniq<ReadDicomGlobalState>(context, bind_data.files.size(), batch_size);
 }
 
 unique_ptr<LocalTableFunctionState> ReadDicomLocalInit(ExecutionContext &context, TableFunctionInitInput &input,
                                                        GlobalTableFunctionState *global_state_p) {
-	return make_uniq<ReadDicomLocalState>();
+	Value internal_buffer_val;
+	size_t internal_buffer_size =
+	    (context.client.TryGetCurrentSetting(Identifier(READ_DICOM_INTERNAL_BUFFER_SIZE_SETTING), internal_buffer_val)
+	         ? internal_buffer_val.GetValue<uint32_t>()
+	         : DEFAULT_BUFFER_SIZE);
+	return make_uniq<ReadDicomLocalState>(internal_buffer_size);
 }
 
 void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &output) {
 	auto &global_state = data.global_state->Cast<ReadDicomGlobalState>();
+	auto &local_state = data.local_state->Cast<ReadDicomLocalState>();
 	auto &bind_data = data.bind_data->Cast<ReadDicomBindData>();
 
 	string dicom_logtype = "dicom";
 
 	idx_t start_idx, end_idx;
 	if (!global_state.GetWorkItem(start_idx, end_idx)) {
-		output.SetCardinality(0);
+		output.SetChildCardinality(0);
 		return;
 	}
 
@@ -74,12 +101,22 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 	auto &path_vector = output.data[0];
 	auto &content_vector = output.data[1];
 
-	auto path_data = FlatVector::GetData<string_t>(path_vector);
-	auto content_data = FlatVector::GetData<string_t>(content_vector);
+	auto path_data = FlatVector::GetDataMutable<string_t>(path_vector);
+	auto content_data = FlatVector::GetDataMutable<string_t>(content_vector);
+
+#ifdef INSPECT_READ_PERFORMANCE
+	auto &read_ops_vector = output.data[3];
+	auto &num_direct_reads_vector = output.data[4];
+	auto &num_buffer_hits_vector = output.data[5];
+	auto &num_buffer_reloads_vector = output.data[6];
+
+	auto read_ops_data = FlatVector::GetDataMutable<uint32_t>(read_ops_vector);
+	auto num_direct_reads_data = FlatVector::GetDataMutable<uint32_t>(num_direct_reads_vector);
+	auto num_buffer_hits_data = FlatVector::GetDataMutable<uint32_t>(num_buffer_hits_vector);
+	auto num_buffer_reloads_data = FlatVector::GetDataMutable<uint32_t>(num_buffer_reloads_vector);
+#endif
 
 	thread_local std::ostringstream jsonStream;
-
-	auto &fs = FileSystem::GetFileSystem(context);
 
 	idx_t actual_count = 0;
 	for (idx_t i = 0; i < count; i++) {
@@ -90,7 +127,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 		path_data[i] = StringVector::AddString(path_vector, file_path);
 
 		// dicom_content column
-		DuckDBDicomInputFileStream stream(fs, file_path);
+		DuckDBDicomInputFileStream stream(global_state.filesystem, file_path, local_state.buffer);
 
 		DcmFileFormat fileformat;
 		OFCondition status;
@@ -131,10 +168,23 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 			logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING, "Could not read file " + file_path);
 			FlatVector::SetNull(content_vector, i, true);
 		}
+
+#ifdef INSPECT_READ_PERFORMANCE
+		stream.PopulateReadPerformanceMetrics();
+		read_ops_data[i] = stream.num_reads_ops_;
+		num_direct_reads_data[i] = stream.num_direct_reads_;
+		num_buffer_hits_data[i] = stream.num_buf_reads_;
+		num_buffer_reloads_data[i] = stream.num_buf_reloads_;
+#endif
 		actual_count += 1;
 	}
 
-	output.SetCardinality(actual_count);
+#ifdef INSPECT_READ_PERFORMANCE
+	auto &thread_id_vector = output.data[2];
+	thread_id_vector.Reference(Value::UBIGINT(local_state.thread_id), count_t(actual_count));
+#endif
+
+	output.SetChildCardinality(actual_count);
 }
 
 unique_ptr<NodeStatistics> ReadDicomCardinality(ClientContext &context, const FunctionData *bind_data_p) {
@@ -155,14 +205,17 @@ double ReadDicomProgress(ClientContext &context, const FunctionData *bind_data_p
 }
 
 void RegisterDicomRead(ExtensionLoader &loader) {
-	TableFunction read_dicom_func("read_dicom", {LogicalType::VARCHAR}, ReadDicomFunc, ReadDicomFuncBind,
+	FunctionSignature read_dicom_signature;
+	read_dicom_signature.AddParameter(Identifier("path"), LogicalType::VARCHAR);
+	read_dicom_signature.AddParameter(Identifier("load_pixel_data"), LogicalType::BOOLEAN, false,
+	                                  FunctionParameterKind::KEYWORD_ONLY);
+
+	TableFunction read_dicom_func(Identifier("read_dicom"), read_dicom_signature, ReadDicomFunc, ReadDicomFuncBind,
 	                              ReadDicomGlobalInit, ReadDicomLocalInit);
-	read_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
+	read_dicom_func.order_preservation_type = OrderPreservationType::NO_ORDER;
 
 	CreateTableFunctionInfo read_dicom_info(read_dicom_func);
 	FunctionDescription read_dicom_desc;
-	read_dicom_desc.parameter_types = {LogicalType::VARCHAR, LogicalType::BOOLEAN};
-	read_dicom_desc.parameter_names = {"path", "load_pixel_data"};
 	read_dicom_desc.description =
 	    "Load DICOM files into DuckDB. The contents of each file are loaded into a row in JSON format.";
 	read_dicom_desc.examples = {"SELECT * FROM read_dicom('/path/to/dicom_files/*');",
@@ -174,6 +227,22 @@ void RegisterDicomRead(ExtensionLoader &loader) {
 	read_dicom_func.table_scan_progress = ReadDicomProgress;
 
 	loader.RegisterFunction(read_dicom_info);
+
+	auto &config = DBConfig::GetConfig(loader.GetDatabaseInstance());
+	config.AddExtensionOption(
+	    Identifier(READ_DICOM_BATCH_SIZE_SETTING), "Number of files to read in each batch of read_dicom.",
+	    LogicalType::UINTEGER, DEFAULT_BATCH_SIZE,
+	    [](ClientContext &context, SetScope scope, Value &parameter) {
+		    if (parameter.GetValue<int64_t>() > STANDARD_VECTOR_SIZE) {
+			    throw InvalidInputException(string(READ_DICOM_BATCH_SIZE_SETTING) + " cannot be greater than " +
+			                                std::to_string(STANDARD_VECTOR_SIZE));
+		    }
+	    },
+	    SetScope::SESSION);
+	config.AddExtensionOption(Identifier(READ_DICOM_INTERNAL_BUFFER_SIZE_SETTING),
+	                          "The size of the internal buffer (in kB) used to cache remote read when calling "
+	                          "read_dicom over remote storage.",
+	                          LogicalType::UINTEGER, DEFAULT_BUFFER_SIZE, nullptr, SetScope::SESSION);
 }
 
 } // namespace duckdb

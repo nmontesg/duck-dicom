@@ -11,7 +11,7 @@ void DuckDBFindSCUCallback::callback(T_DIMSE_C_FindRQ *, int &responseCount, T_D
 	DcmJsonFormatCompact format;
 	responseIdentifiers->writeJson(jsonStream, format);
 
-	auto response_data = FlatVector::GetData<string_t>(response_vector);
+	auto response_data = FlatVector::GetDataMutable<string_t>(response_vector);
 	response_data[responseCount - 1] = StringVector::AddString(this->response_vector, "{" + jsonStream.str() + "}");
 	this->num_responses = responseCount;
 }

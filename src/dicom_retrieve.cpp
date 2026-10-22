@@ -5,12 +5,13 @@
 #include "dicom_retrieve.hpp"
 #include "dicom_utils.hpp"
 #include "duckdb_tls_options.hpp"
+#include "duckdb/common/identifier.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
 
 unique_ptr<FunctionData> RetrieveDicomFuncSingleBind(ClientContext &context, TableFunctionBindInput &input,
-                                                     vector<LogicalType> &return_types, vector<string> &names) {
+                                                     vector<LogicalType> &return_types, vector<Identifier> &names) {
 	auto result = make_uniq<RetrieveDicomBindData>();
 	for (auto &val : input.inputs) {
 		if (val.IsNull()) {
@@ -23,7 +24,7 @@ unique_ptr<FunctionData> RetrieveDicomFuncSingleBind(ClientContext &context, Tab
 }
 
 unique_ptr<FunctionData> RetrieveDicomFuncListBind(ClientContext &context, TableFunctionBindInput &input,
-                                                   vector<LogicalType> &return_types, vector<string> &names) {
+                                                   vector<LogicalType> &return_types, vector<Identifier> &names) {
 	auto result = make_uniq<RetrieveDicomBindData>();
 	auto &map_elements = ListValue::GetChildren(input.inputs[0]);
 	for (auto &element : map_elements) {
@@ -37,7 +38,7 @@ unique_ptr<FunctionData> RetrieveDicomFuncListBind(ClientContext &context, Table
 }
 
 void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input, vector<LogicalType> &return_types,
-                           vector<string> &names, RetrieveDicomBindData &bind_data) {
+                           vector<Identifier> &names, RetrieveDicomBindData &bind_data) {
 	RedirectDCMTKLogsToDuckDB(context);
 
 	bool use_secret = false;
@@ -45,14 +46,22 @@ void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input
 
 	for (const auto &kv : input.named_parameters) {
 		if (kv.first == "secret") {
-			use_secret = true;
-			secret_name = StringValue::Get(kv.second);
+			if (!kv.second.IsNull()) {
+				use_secret = true;
+				secret_name = StringValue::Get(kv.second);
+			}
 		} else if (kv.first == "host") {
-			bind_data.host = StringValue::Get(kv.second);
+			if (!kv.second.IsNull()) {
+				bind_data.host = StringValue::Get(kv.second);
+			}
 		} else if (kv.first == "port") {
-			bind_data.port = UIntegerValue::Get(kv.second);
+			if (!kv.second.IsNull()) {
+				bind_data.port = UIntegerValue::Get(kv.second);
+			}
 		} else if (kv.first == "incoming_port") {
-			bind_data.incoming_port = UIntegerValue::Get(kv.second);
+			if (!kv.second.IsNull()) {
+				bind_data.incoming_port = UIntegerValue::Get(kv.second);
+			}
 		} else if (kv.first == "aetitle") {
 			bind_data.called_ae_title = StringValue::Get(kv.second);
 		} else if (kv.first == "calling_aetitle") {
@@ -72,14 +81,20 @@ void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input
 		} else if (kv.first == "max_receive_pdu_length") {
 			bind_data.max_receive_pdu_length = UIntegerValue::Get(kv.second);
 		} else if (kv.first == "tls_key_file") {
-			bind_data.tls_private_key_ca_files.first = StringValue::Get(kv.second);
-			bind_data.use_tls = true;
+			if (!kv.second.IsNull()) {
+				bind_data.tls_private_key_ca_files.first = StringValue::Get(kv.second);
+				bind_data.use_tls = true;
+			}
 		} else if (kv.first == "tls_ca_file") {
-			bind_data.tls_private_key_ca_files.second = StringValue::Get(kv.second);
-			bind_data.use_tls = true;
+			if (!kv.second.IsNull()) {
+				bind_data.tls_private_key_ca_files.second = StringValue::Get(kv.second);
+				bind_data.use_tls = true;
+			}
 		} else if (kv.first == "peer_ca_file") {
-			bind_data.peer_ca_file = StringValue::Get(kv.second);
-			bind_data.use_tls = true;
+			if (!kv.second.IsNull()) {
+				bind_data.peer_ca_file = StringValue::Get(kv.second);
+				bind_data.use_tls = true;
+			}
 		} else if (kv.first == "load_pixel_data") {
 			bind_data.read_options.load_pixel_data = BooleanValue::Get(kv.second);
 		} else {
@@ -108,7 +123,7 @@ void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input
 		DuckDBDicomUtils::CheckTlsParams<RetrieveDicomBindData>(context, bind_data);
 	}
 
-	names.push_back(id_col_name);
+	names.push_back(Identifier(id_col_name));
 	return_types.push_back(LogicalType::VARCHAR);
 
 	names.push_back("dicom_response");
@@ -130,7 +145,7 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 	auto &logger = Logger::Get(context);
 
 	if (global_state.is_processed) {
-		output.SetCardinality(0);
+		output.SetChildCardinality(0);
 		return;
 	}
 
@@ -233,7 +248,7 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 	                DIMSE_dumpMessage(temp_str, req, DIMSE_OUTGOING, nullptr, presentationContextID).c_str());
 
 	unsigned int total_retrieved_datasets = 0;
-	auto uid_data = FlatVector::GetData<string_t>(uid_vector);
+	auto uid_data = FlatVector::GetDataMutable<string_t>(uid_vector);
 	for (auto &unique_id : bind_data.uids) {
 		oss.str("");
 		oss.clear();
@@ -329,7 +344,7 @@ void RetrieveDicomFunc(ClientContext &context, TableFunctionInput &data, DataChu
 		logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING, oss.str());
 	}
 
-	output.SetCardinality(total_retrieved_datasets);
+	output.SetChildCardinality(total_retrieved_datasets);
 	global_state.is_processed = true;
 }
 
@@ -484,7 +499,7 @@ OFCondition storeSCP(T_ASC_Association *assoc, T_DIMSE_Message *msg, T_ASC_Prese
 	}
 	dset->writeJson(jsonStream, format);
 
-	auto response_data = FlatVector::GetData<string_t>(response_vector);
+	auto response_data = FlatVector::GetDataMutable<string_t>(response_vector);
 	response_data[req->MessageID - 1 + offset] = StringVector::AddString(response_vector, "{" + jsonStream.str() + "}");
 
 	num_responses = req->MessageID;
@@ -499,40 +514,37 @@ OFCondition storeSCP(T_ASC_Association *assoc, T_DIMSE_Message *msg, T_ASC_Prese
 }
 
 void RegisterDicomRetrieve(ExtensionLoader &loader) {
+	FunctionSignature retrieve_dicom_signature;
+	retrieve_dicom_signature.AddArgs(Identifier("uids"), LogicalType::VARCHAR);
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("secret"), LogicalType::VARCHAR, Value(LogicalType::SQLNULL));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("host"), LogicalType::VARCHAR, Value(LogicalType::SQLNULL));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("port"), LogicalType::UINTEGER, Value(LogicalType::SQLNULL));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("incoming_port"), LogicalType::UINTEGER,
+	                                        Value(LogicalType::SQLNULL));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("aetitle"), LogicalType::VARCHAR, Value("ANY-SCP"));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("calling_aetitle"), LogicalType::VARCHAR, Value("DUCKDB"));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("qr_level"), LogicalType::VARCHAR, Value("study"));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("acse_timeout"), LogicalType::UINTEGER, Value(30));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("dimse_timeout"), LogicalType::UINTEGER, Value(0));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("tls_key_file"), LogicalType::VARCHAR,
+	                                        Value(LogicalType::SQLNULL));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("tls_ca_file"), LogicalType::VARCHAR,
+	                                        Value(LogicalType::SQLNULL));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("peer_ca_file"), LogicalType::VARCHAR,
+	                                        Value(LogicalType::SQLNULL));
+	retrieve_dicom_signature.AddKeywordOnly(Identifier("load_pixel_data"), LogicalType::BOOLEAN, false);
+
 	// retrieve_dicom table function
-	TableFunction retrieve_dicom_func("retrieve_dicom", {}, RetrieveDicomFunc, RetrieveDicomFuncSingleBind,
-	                                  RetrieveDicomGlobalInit);
-	retrieve_dicom_func.varargs = {LogicalType::VARCHAR};
-	retrieve_dicom_func.named_parameters["secret"] = LogicalType::VARCHAR;
-	retrieve_dicom_func.named_parameters["host"] = LogicalType::VARCHAR;
-	retrieve_dicom_func.named_parameters["port"] = LogicalType::UINTEGER;
-	retrieve_dicom_func.named_parameters["incoming_port"] = LogicalType::UINTEGER;
-	retrieve_dicom_func.named_parameters["aetitle"] = LogicalType::VARCHAR;
-	retrieve_dicom_func.named_parameters["calling_aetitle"] = LogicalType::VARCHAR;
-	retrieve_dicom_func.named_parameters["qr_level"] = LogicalType::VARCHAR;
-	retrieve_dicom_func.named_parameters["acse_timeout"] = LogicalType::UINTEGER;
-	retrieve_dicom_func.named_parameters["dimse_timeout"] = LogicalType::UINTEGER;
-	retrieve_dicom_func.named_parameters["max_receive_pdu_length"] = LogicalType::UINTEGER;
-	retrieve_dicom_func.named_parameters["tls_key_file"] = LogicalType::VARCHAR;
-	retrieve_dicom_func.named_parameters["tls_ca_file"] = LogicalType::VARCHAR;
-	retrieve_dicom_func.named_parameters["peer_ca_file"] = LogicalType::VARCHAR;
-	retrieve_dicom_func.named_parameters["load_pixel_data"] = LogicalType::BOOLEAN;
+	TableFunction retrieve_dicom_func("retrieve_dicom", retrieve_dicom_signature, RetrieveDicomFunc,
+	                                  RetrieveDicomFuncSingleBind, RetrieveDicomGlobalInit);
 
 	CreateTableFunctionInfo retrieve_dicom_info(retrieve_dicom_func);
 	FunctionDescription retrieve_dicom_desc;
-	retrieve_dicom_desc.parameter_types = {
-	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::UINTEGER, LogicalType::UINTEGER, LogicalType::VARCHAR,
-	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::UINTEGER, LogicalType::UINTEGER, LogicalType::UINTEGER,
-	    LogicalType::VARCHAR, LogicalType::VARCHAR, LogicalType::VARCHAR,  LogicalType::BOOLEAN};
-	retrieve_dicom_desc.parameter_names = {
-	    "secret",          "host",        "port",         "incoming_port", "aetitle",
-	    "calling_aetitle", "qr_level",    "acse_timeout", "dimse_output",  "max_receive_pdu_length",
-	    "tls_key_file",    "tls_ca_file", "peer_ca_file"};
 	retrieve_dicom_desc.description = "Retrieve DICOM data from remote modalities using C-MOVE commands";
 	retrieve_dicom_desc.examples = {
 	    "FROM retrieve_dicom('1.3.54.24.5...', host='localhost', port=4242, incoming_port=11112, "
 	    "qr_level='study');",
-	    "FROM retrieve_dicom(['1.95.3...', '1.56.7...'], secret='my_dicom_conn_secret', qr_level='series');"};
+	    "FROM retrieve_dicom('1.95.3...', '1.56.7...', ..., secret='my_dicom_conn_secret', qr_level='series');"};
 	retrieve_dicom_desc.categories = {"medical"};
 	retrieve_dicom_info.descriptions.push_back(retrieve_dicom_desc);
 

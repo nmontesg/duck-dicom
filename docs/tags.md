@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD041 -->
 # DICOM tags
 
 ## `DICOM_TAG` type

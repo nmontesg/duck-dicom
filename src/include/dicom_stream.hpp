@@ -3,27 +3,37 @@
 #include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk/dcmdata/dcistrma.h"
 #include "dcmtk/ofstd/offile.h"
+#include "duckdb/storage/external_file_cache/caching_file_system.hpp"
 
 namespace duckdb {
 
 class DuckDBDicomProducer : public DcmProducer {
 public:
-	DuckDBDicomProducer(FileSystem &fs, const string &fp)
-	    : handle(fs.OpenFile(fp, FileOpenFlags::FILE_FLAGS_READ)), file_size(0), location(0) {
+	DuckDBDicomProducer(CachingFileSystem &fs, const string &fp, vector<unsigned char> &buf)
+	    : handle(fs.OpenFile(fp, FileOpenFlags::FILE_FLAGS_READ)), file_size(0), location(0), internal_buffer(buf),
+	      buffer_start(0), buffer_end(0) {
 		if (handle) {
 			file_size = handle->GetFileSize();
 		}
+#ifdef INSPECT_READ_PERFORMANCE
+		num_reads_ops_ = 0;
+		num_direct_reads_ = 0;
+		num_buf_reads_ = 0;
+		num_buf_reloads_ = 0;
+#endif
+
+		// initial buffer load
+		size_t fetch_len = std::min<size_t>(internal_buffer.size(), file_size);
+		FileBufferHandleGroup group = handle->Read(fetch_len, location);
+		group.CopyTo(data_ptr_cast<void>(internal_buffer.data()), fetch_len);
+		buffer_end = fetch_len;
 	}
 
 	~DuckDBDicomProducer() override {
-		if (handle) {
-			handle->Close();
-		}
 	}
 
 	OFBool good() const override {
 		return handle != nullptr;
-		;
 	}
 
 	OFCondition status() const override {
@@ -45,7 +55,46 @@ public:
 		if (buflen > avail()) {
 			buflen = avail();
 		}
-		handle->Read(buf, buflen, location);
+
+#ifdef INSPECT_READ_PERFORMANCE
+		num_reads_ops_ += 1;
+#endif
+
+		// request bigger than internal buffer reads directly from file handler
+		if (buflen > internal_buffer.size()) {
+#ifdef INSPECT_READ_PERFORMANCE
+			num_direct_reads_ += 1;
+#endif
+			FileBufferHandleGroup group = handle->Read(buflen, location);
+			group.CopyTo(data_ptr_cast<void>(buf), buflen);
+			location += buflen;
+			return buflen;
+		}
+
+		// internal buffer fully covers the request
+		if (location >= buffer_start && location + buflen <= buffer_end) {
+#ifdef INSPECT_READ_PERFORMANCE
+			num_buf_reads_ += 1;
+#endif
+			memcpy(buf, internal_buffer.data() + (location - buffer_start), buflen);
+			location += buflen;
+			return buflen;
+		}
+
+		// populate the buffer to serve this request (and hopefully following ones)
+#ifdef INSPECT_READ_PERFORMANCE
+		num_buf_reloads_ += 1;
+#endif
+		size_t fetch_len = std::min<size_t>(internal_buffer.size(), file_size - location);
+		FileBufferHandleGroup group = handle->Read(fetch_len, location);
+		group.CopyTo(data_ptr_cast<void>(internal_buffer.data()), fetch_len);
+		buffer_start = location;
+		buffer_end = buffer_start + fetch_len;
+
+#ifdef INSPECT_READ_PERFORMANCE
+		num_buf_reads_ += 1;
+#endif
+		memcpy(buf, internal_buffer.data(), buflen);
 		location += buflen;
 		return buflen;
 	}
@@ -66,20 +115,46 @@ public:
 		location = (num > location_long ? 0 : location_long - num);
 	}
 
+#ifdef INSPECT_READ_PERFORMANCE
+	uint32_t num_reads_ops_;
+	uint32_t num_direct_reads_;
+	uint32_t num_buf_reads_;
+	uint32_t num_buf_reloads_;
+#endif
+
 private:
-	unique_ptr<FileHandle> handle;
+	unique_ptr<CachingFileHandle> handle;
 	idx_t file_size;
 	idx_t location;
+
+	vector<unsigned char> &internal_buffer;
+	idx_t buffer_start;
+	idx_t buffer_end;
 };
 
 class DuckDBDicomInputFileStream : public DcmInputStream {
 public:
-	DuckDBDicomInputFileStream(FileSystem &fs, const string &fp) : DcmInputStream(&producer_), producer_(fs, fp) {};
+	DuckDBDicomInputFileStream(CachingFileSystem &fs, const string &fp, vector<unsigned char> &buf)
+	    : DcmInputStream(&producer_), producer_(fs, fp, buf) {};
 	~DuckDBDicomInputFileStream() override {};
 
 	DcmInputStreamFactory *newFactory() const override {
 		return nullptr;
 	}
+
+#ifdef INSPECT_READ_PERFORMANCE
+	void PopulateReadPerformanceMetrics() {
+		num_reads_ops_ = producer_.num_reads_ops_;
+		num_direct_reads_ = producer_.num_direct_reads_;
+		num_buf_reads_ = producer_.num_buf_reads_;
+		num_buf_reloads_ = producer_.num_buf_reloads_;
+	}
+
+	uint32_t num_reads_ops_;
+	uint32_t num_direct_reads_;
+	uint32_t num_buf_reads_;
+	uint32_t num_buf_reloads_;
+#endif
 
 private:
 	DuckDBDicomProducer producer_;

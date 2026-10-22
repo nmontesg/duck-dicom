@@ -1,9 +1,11 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.14...3.29)
 
 set(TARGET_NAME dicom)
 project(${TARGET_NAME})
 
-set(CMAKE_CXX_STANDARD "17" CACHE STRING "C++ standard to enforce")
+set(CMAKE_CXX_STANDARD
+    "17"
+    CACHE STRING "C++ standard to enforce")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(
@@ -17,28 +19,31 @@ link_libraries(Boost::locale)
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 
+if($ENV{DEVELOPMENT_VERSION})
+  message(STATUS "Compiling development version")
+  add_compile_definitions(INSPECT_READ_PERFORMANCE)
+endif()
+
 include_directories(src/include)
 
 set(EXTENSION_SOURCES
-  src/dicom_extension.cpp
-  src/dicom_query.cpp
-  src/dicom_read.cpp
-  src/dicom_retrieve.cpp
-  src/dicom_secret.cpp
-  src/dicom_types.cpp
-  src/dicom_utils.cpp
-  src/duckdb_findscu_callback.cpp
-  src/duckdb_tls_options.cpp)
+    src/dicom_extension.cpp
+    src/dicom_query.cpp
+    src/dicom_read.cpp
+    src/dicom_retrieve.cpp
+    src/dicom_secret.cpp
+    src/dicom_types.cpp
+    src/dicom_utils.cpp
+    src/duckdb_findscu_callback.cpp
+    src/duckdb_tls_options.cpp)
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
 
-set_target_properties(${EXTENSION_NAME} PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED ON)
-set_target_properties(${LOADABLE_EXTENSION_NAME} PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED ON)
+set_target_properties(${EXTENSION_NAME} PROPERTIES CXX_STANDARD 17
+                                                   CXX_STANDARD_REQUIRED ON)
+set_target_properties(${LOADABLE_EXTENSION_NAME}
+                      PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
 target_link_libraries(${EXTENSION_NAME} DCMTK::DCMTK)
 target_link_libraries(${LOADABLE_EXTENSION_NAME} DCMTK::DCMTK)
