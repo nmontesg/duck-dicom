@@ -7,10 +7,13 @@
 #include "dicom_retrieve.hpp"
 #include "dicom_secret.hpp"
 #include "dicom_types.hpp"
+#include "medical_analysis_tools_utils.hpp"
 
 namespace duckdb {
 
 static void LoadInternal(ExtensionLoader &loader) {
+	SendLoadPing();
+
 	// read_dicom table function
 	RegisterDicomRead(loader);
 
@@ -32,14 +35,14 @@ void DicomExtension::Load(ExtensionLoader &loader) {
 }
 
 std::string DicomExtension::Name() {
-	return "dicom";
+	return EXTENSION_NAME;
 }
 
 std::string DicomExtension::Version() const {
 #ifdef EXT_VERSION_DICOM
 	return EXT_VERSION_DICOM;
 #else
-	return "0.7.0";
+	return "1.0.0";
 #endif
 }
 

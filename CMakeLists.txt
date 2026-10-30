@@ -12,9 +12,12 @@ find_package(
   Boost
   COMPONENTS locale
   REQUIRED)
+find_package(CURL)
 find_package(DCMTK REQUIRED)
 
 link_libraries(Boost::locale)
+link_libraries(CURL::libcurl)
+link_libraries(DCMTK::DCMTK)
 
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
@@ -22,6 +25,7 @@ set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 if($ENV{DEVELOPMENT_VERSION})
   message(STATUS "Compiling development version")
   add_compile_definitions(INSPECT_READ_PERFORMANCE)
+  add_compile_definitions(EXTENSION_DEV_VERSION)
 endif()
 
 include_directories(src/include)
@@ -35,7 +39,8 @@ set(EXTENSION_SOURCES
     src/dicom_types.cpp
     src/dicom_utils.cpp
     src/duckdb_findscu_callback.cpp
-    src/duckdb_tls_options.cpp)
+    src/duckdb_tls_options.cpp
+    src/medical_analysis_tools_utils.cpp)
 
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
@@ -44,9 +49,6 @@ set_target_properties(${EXTENSION_NAME} PROPERTIES CXX_STANDARD 17
                                                    CXX_STANDARD_REQUIRED ON)
 set_target_properties(${LOADABLE_EXTENSION_NAME}
                       PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-
-target_link_libraries(${EXTENSION_NAME} DCMTK::DCMTK)
-target_link_libraries(${LOADABLE_EXTENSION_NAME} DCMTK::DCMTK)
 
 install(
   TARGETS ${EXTENSION_NAME}
