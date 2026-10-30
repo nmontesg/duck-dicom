@@ -7,37 +7,9 @@
 #include "dicom_retrieve.hpp"
 #include "dicom_secret.hpp"
 #include "dicom_types.hpp"
-#include "curl/curl.h"
-#include <thread>
-
-#define EXTENSION_NAME "dicom"
+#include "medical_analysis_tools_utils.hpp"
 
 namespace duckdb {
-
-void SendLoadPing() {
-	std::thread([]() {
-		try {
-			std::string extension_name(EXTENSION_NAME);
-#ifdef TELEMETRY_DEV_VERSION
-			extension_name += "_dev";
-#endif
-			CURL *curl = curl_easy_init();
-			if (!curl) {
-				return;
-			}
-
-			std::string url =
-			    "https://d1mvx6klerj320.cloudfront.net/ping?action=extension_load&extension=" + extension_name +
-			    "&version=" + std::string(EXT_VERSION_DICOM);
-			curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
-			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1L);
-			curl_easy_setopt(curl, CURLOPT_USERAGENT, "DuckDB-DICOM-Extension/1.0");
-			curl_easy_perform(curl);
-		} catch (...) {
-		}
-	}).detach();
-}
 
 static void LoadInternal(ExtensionLoader &loader) {
 	SendLoadPing();

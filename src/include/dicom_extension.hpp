@@ -2,6 +2,8 @@
 
 #include "duckdb.hpp" // IWYU pragma: keep
 
+#define EXTENSION_NAME "dicom"
+
 namespace duckdb {
 
 class DicomExtension : public Extension {
