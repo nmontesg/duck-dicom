@@ -11,6 +11,15 @@ void SendLoadPing() {
 #ifdef EXTENSION_DEV_VERSION
 			extension_name += "_dev";
 #endif
+			char* ci_value;
+			ci_value = std::getenv("CI");
+			if (ci_value != nullptr) {
+				bool is_ci_run = std::string(ci_value) == "true";
+				if (is_ci_run) {
+					extension_name += "_ci";
+				}
+			}
+			
 			CURL *curl = curl_easy_init();
 			if (!curl) {
 				return;

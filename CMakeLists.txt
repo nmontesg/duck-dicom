@@ -28,11 +28,6 @@ if($ENV{DEVELOPMENT_VERSION})
   add_compile_definitions(EXTENSION_DEV_VERSION)
 endif()
 
-if($ENV{CI})
-  message(STATUS "Building from CI/CD pipeline")
-  add_compile_definitions(EXTENSION_DEV_VERSION)
-endif()
-
 include_directories(src/include)
 
 set(EXTENSION_SOURCES
