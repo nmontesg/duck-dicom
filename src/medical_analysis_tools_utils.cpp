@@ -31,8 +31,10 @@ void SendLoadPing() {
 			curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
 			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1L);
+			curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 			curl_easy_setopt(curl, CURLOPT_USERAGENT, "DuckDB-DICOM-Extension/1.0");
 			curl_easy_perform(curl);
+			curl_easy_cleanup(curl);
 		} catch (...) {
 		}
 	}).detach();
