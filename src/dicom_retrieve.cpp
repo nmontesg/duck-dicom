@@ -4,6 +4,7 @@
 #include "dcmtk/dcmdata/dcobject.h"
 #include "dicom_retrieve.hpp"
 #include "dicom_utils.hpp"
+#include "duckdb/common/vector.hpp"
 #include "duckdb_tls_options.hpp"
 #include "duckdb/common/identifier.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
@@ -44,6 +45,8 @@ void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input
 	bool use_secret = false;
 	string secret_name;
 
+	vector<string> qr_level = DuckDBDicomUtils::GetQueryRetrieveLevels();
+
 	for (const auto &kv : input.named_parameters) {
 		if (kv.first == "secret") {
 			if (!kv.second.IsNull()) {
@@ -68,9 +71,8 @@ void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input
 			bind_data.calling_ae_title = StringValue::Get(kv.second);
 		} else if (kv.first == "qr_level") {
 			auto input_qr_level = StringValue::Get(kv.second);
-			auto it = find(DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.begin(),
-			               DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.end(), StringUtil::Upper(input_qr_level));
-			if (it == DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.end()) {
+			auto it = find(qr_level.begin(), qr_level.end(), StringUtil::Upper(input_qr_level));
+			if (it == qr_level.end()) {
 				throw InvalidInputException("Unknown Query/Retrieve level " + input_qr_level);
 			}
 			bind_data.query_retrieve_level = StringUtil::Upper(input_qr_level);
@@ -104,7 +106,7 @@ void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input
 
 	string id_col_name =
 	    StringUtil::Lower(bind_data.query_retrieve_level) +
-	    (bind_data.query_retrieve_level == DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS[0] ? "_id" : "_instance_uid");
+	    (bind_data.query_retrieve_level == qr_level[0] ? "_id" : "_instance_uid");
 
 	if (use_secret) {
 		DuckDBDicomUtils::GetSecretParams<RetrieveDicomBindData>(context, secret_name, bind_data);

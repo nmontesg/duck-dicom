@@ -9,7 +9,22 @@ namespace duckdb {
 
 class DuckDBDicomUtils {
 public:
-	inline static const vector<string> QUERY_RETRIEVE_LEVELS = {"PATIENT", "STUDY", "SERIES", "IMAGE"};
+	static const vector<string> GetQueryRetrieveLevels() {
+		return {"PATIENT", "STUDY", "SERIES", "IMAGE"};
+	};
+
+	static const map<string, string> GetCharacterSetMapping() {
+		map<string, string> CHARACTER_SET_MAPPING;
+		CHARACTER_SET_MAPPING["ISO_IR 100"] = "ISO IR 100";
+		CHARACTER_SET_MAPPING["ISO_IR 101"] = "ISO IR 101";
+		CHARACTER_SET_MAPPING["ISO_IR 109"] = "ISO IR 109";
+		CHARACTER_SET_MAPPING["ISO_IR 110"] = "ISO IR 110";
+		// (
+		// 	{"ISO_IR 100", "Latin1"},
+		// 	{"ISO_IR 101", "Latin2"},
+		// );
+		return CHARACTER_SET_MAPPING;
+	};
 
 	static void ParseQueryMatchKeys(const Value &, QueryDicomBindData &);
 	static void ParseQueryRetrieveKeys(const Value &, QueryDicomBindData &);

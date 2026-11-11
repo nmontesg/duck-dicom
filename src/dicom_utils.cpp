@@ -41,13 +41,15 @@ void DuckDBDicomUtils::ParseQueryRetrieveKeys(const Value &input_query, QueryDic
 void DuckDBDicomUtils::ParseDicomDataset(const string &qr_level, const string &uid, DcmDataset *dset) {
 	DcmTag tag;
 
-	if (qr_level == DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS[0]) {        // patient
+	vector<string> qr_levels = DuckDBDicomUtils::GetQueryRetrieveLevels();
+
+	if (qr_level == qr_levels[0]) {        // patient
 		tag = DcmTag(0x0010, 0x0020);                                    // PatientID
-	} else if (qr_level == DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS[1]) { // study
+	} else if (qr_level == qr_levels[1]) { // study
 		tag = DcmTag(0x0020, 0x000d);                                    // StudyInstanceUID
-	} else if (qr_level == DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS[2]) { // series
+	} else if (qr_level == qr_levels[2]) { // series
 		tag = DcmTag(0x0020, 0x000e);                                    // SeriesInstanceUID
-	} else if (qr_level == DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS[3]) { // image
+	} else if (qr_level == qr_levels[3]) { // image
 		tag = DcmTag(0x0008, 0x0018);                                    // SOPInstanceUID
 	} else {
 		throw InvalidInputException("Unknow Query/Retrieve Level " + qr_level);
