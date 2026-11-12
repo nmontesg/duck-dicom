@@ -104,9 +104,8 @@ void RetrieveDicomFuncBind(ClientContext &context, TableFunctionBindInput &input
 		}
 	}
 
-	string id_col_name =
-	    StringUtil::Lower(bind_data.query_retrieve_level) +
-	    (bind_data.query_retrieve_level == qr_level[0] ? "_id" : "_instance_uid");
+	string id_col_name = StringUtil::Lower(bind_data.query_retrieve_level) +
+	                     (bind_data.query_retrieve_level == qr_level[0] ? "_id" : "_instance_uid");
 
 	if (use_secret) {
 		DuckDBDicomUtils::GetSecretParams<RetrieveDicomBindData>(context, secret_name, bind_data);

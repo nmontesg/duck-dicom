@@ -1,10 +1,14 @@
 #include "boost/locale/encoding.hpp"
+#include "boost/locale/encoding_errors.hpp"
+#include "dicom_utils.hpp"
 #include "duckdb.hpp" // IWYU pragma: keep
 #include "dcmtk2duckdb_logger.hpp"
 #include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmdata/dcjson.h"
 #include "dicom_read.hpp"
 #include "dicom_stream.hpp"
+#include "duckdb/common/exception.hpp"
+#include "duckdb/logging/logging.hpp"
 #include "duckdb/parser/parsed_data/create_table_function_info.hpp"
 
 namespace duckdb {
@@ -88,6 +92,7 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 	auto &bind_data = data.bind_data->Cast<ReadDicomBindData>();
 
 	string dicom_logtype = "dicom";
+	auto &logger = Logger::Get(context);
 
 	idx_t start_idx, end_idx;
 	if (!global_state.GetWorkItem(start_idx, end_idx)) {
@@ -138,34 +143,60 @@ void ReadDicomFunc(ClientContext &context, TableFunctionInput &data, DataChunk &
 			status = fileformat.read(stream);
 		}
 
-		if (status.good()) {
-			DcmDataset *dataset = fileformat.getDataset();
-			jsonStream.str("");
-			jsonStream.clear();
+		if (!status.good()) {
+			logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING, "Could not read file " + file_path);
+			FlatVector::SetNull(content_vector, i, true);
+			continue;
+		}
 
-			DcmJsonFormatCompact format;
-			dataset->writeJson(jsonStream, format);
+		DcmDataset *dataset = fileformat.getDataset();
+		jsonStream.str("");
+		jsonStream.clear();
 
-			string dicom_content;
+		DcmJsonFormatCompact format;
+		dataset->writeJson(jsonStream, format);
 
-			// unsupported SpecificCharacterSet are converted to UTF-8 using boost
-			const char *char_set_ptr = nullptr;
-			OFCondition find_char_set = dataset->findAndGetString(DcmTagKey(0x0008, 0x0005), char_set_ptr);
-			if (find_char_set.good()) {
-				string char_set(char_set_ptr);
-				if (char_set == "ISO 2022 IR 100") {
-					dicom_content = boost::locale::conv::to_utf<char>(jsonStream.str(), "Latin1");
-				} else {
-					dicom_content = jsonStream.str();
-				}
-			} else {
+		string dicom_content;
+
+		vector<string> character_sets = DuckDBDicomUtils::GetCharacterSets(dataset);
+
+		if (character_sets.size() > 1) {
+			logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING,
+			                "Cannot read file " + file_path + " with multiple character sets");
+			FlatVector::SetNull(content_vector, i, true);
+			continue;
+		}
+
+		if (character_sets.empty()) {
+			logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING,
+			                "Cannot read file " + file_path + " missing character set");
+			FlatVector::SetNull(content_vector, i, true);
+			continue;
+		}
+
+		const string &char_set = character_sets[0];
+		if (auto char_set_map = bind_data.character_set_mapping.find(char_set);
+		    char_set_map != bind_data.character_set_mapping.end()) {
+			try {
+				dicom_content = boost::locale::conv::to_utf<char>(jsonStream.str(), char_set_map->second,
+				                                                  boost::locale::conv::stop);
+			} catch (const boost::locale::conv::conversion_error &exc) {
+				// if conversion fails, try the straighforward way
+				dicom_content = jsonStream.str();
+			} catch (const boost::locale::conv::invalid_charset_error &exc) {
+				logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING,
+				                "Unrecognized character set " + char_set + " (" + char_set_map->second + ")");
 				dicom_content = jsonStream.str();
 			}
-
-			content_data[i] = StringVector::AddString(content_vector, "{" + dicom_content + "}");
 		} else {
-			auto &logger = Logger::Get(context);
-			logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING, "Could not read file " + file_path);
+			dicom_content = jsonStream.str();
+		}
+
+		try {
+			content_data[i] = StringVector::AddString(content_vector, "{" + dicom_content + "}");
+		} catch (const InternalException &exc) {
+			logger.WriteLog(dicom_logtype.c_str(), LogLevel::LOG_WARNING,
+			                "Invalid dicom content for file " + file_path);
 			FlatVector::SetNull(content_vector, i, true);
 		}
 
