@@ -42,7 +42,7 @@ std::string DicomExtension::Version() const {
 #ifdef EXT_VERSION_DICOM
 	return EXT_VERSION_DICOM;
 #else
-	return "1.0.0";
+	return "1.1.0";
 #endif
 }
 

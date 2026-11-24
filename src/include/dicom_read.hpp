@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dicom_utils.hpp"
 #include "duckdb.hpp" // IWYU pragma: keep
 #include "duckdb/storage/external_file_cache/caching_file_system.hpp"
 #include <thread>
@@ -19,6 +20,7 @@ struct ReadDicomOptions {
 struct ReadDicomBindData : public TableFunctionData {
 	vector<OpenFileInfo> files;
 	ReadDicomOptions options;
+	const map<string, string> character_set_mapping = DuckDBDicomUtils::GetCharacterSetMapping();
 };
 
 unique_ptr<FunctionData> ReadDicomFuncBind(ClientContext &, TableFunctionBindInput &, vector<LogicalType> &,

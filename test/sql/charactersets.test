@@ -1,0 +1,77 @@
+# name: test/sql/charactersets.test
+# description: test dicom extension (reading files with diverse encodings)
+# group: [sql]
+
+require dicom
+
+require json
+
+query I
+SELECT dicom_content->>'$.00100010.Value[0].Alphabetic'
+FROM read_dicom('test/test_data/charsets/SCSARAB');
+----
+قباني^لنزار
+
+query I
+SELECT dicom_content->>'$.00100010.Value[0].Alphabetic'
+FROM read_dicom('test/test_data/charsets/SCSFREN');
+----
+Buc^Jérôme
+
+query I
+SELECT dicom_content->>'$.00100010.Value[0].Alphabetic'
+FROM read_dicom('test/test_data/charsets/SCSGERM');
+----
+Äneas^Rüdiger
+
+query I
+SELECT dicom_content->>'$.00100010.Value[0].Alphabetic'
+FROM read_dicom('test/test_data/charsets/SCSGREEK');
+----
+Διονυσιος
+
+query I
+SELECT dicom_content->>'$.00100010.Value[0].Alphabetic' AS alphabetic
+FROM read_dicom('test/test_data/charsets/SCSH31');
+----
+Yamada^Tarou
+
+# do not read files with multiple character sets
+query I
+SELECT dicom_content
+FROM read_dicom('test/test_data/charsets/SCSH32');
+----
+
+query I
+SELECT dicom_content->>'$.00100010.Value[0].Alphabetic'
+FROM read_dicom('test/test_data/charsets/SCSHBRW');
+----
+שרון^דבורה
+
+query I
+SELECT dicom_content->>'$.00100010.Value[0].Alphabetic'
+FROM read_dicom('test/test_data/charsets/SCSI2');
+----
+Hong^Gildong
+
+query I
+SELECT dicom_content->>'$.00100010.Value[0].Alphabetic'
+FROM read_dicom('test/test_data/charsets/SCSRUSS');
+----
+Люкceмбypг
+
+query II
+SELECT
+	dicom_content->>'$.00100010.Value[0].Alphabetic' AS alphabetic,
+	dicom_content->>'$.00100010.Value[0].Ideographic' AS ideographic
+FROM read_dicom('test/test_data/charsets/SCSX1');
+----
+Wang^XiaoDong	王^小東
+
+query II
+SELECT
+	dicom_content->>'$.00100010.Value[0].Alphabetic' AS alphabetic,
+	dicom_content->>'$.00100010.Value[0].Ideographic' AS ideographic
+FROM read_dicom('test/test_data/charsets/SCSX2');
+----
+Wang^XiaoDong	王^小东

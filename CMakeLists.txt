@@ -10,14 +10,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(
   Boost
-  COMPONENTS locale
+  COMPONENTS algorithm locale
   REQUIRED)
 find_package(CURL)
 find_package(DCMTK REQUIRED)
 
-link_libraries(Boost::locale)
-link_libraries(CURL::libcurl)
-link_libraries(DCMTK::DCMTK)
+link_libraries(Boost::algorithm Boost::locale CURL::libcurl DCMTK::DCMTK)
 
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)

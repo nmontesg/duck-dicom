@@ -17,6 +17,8 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 	bool use_secret = false;
 	string secret_name;
 
+	vector<string> qr_levels = DuckDBDicomUtils::GetQueryRetrieveLevels();
+
 	for (const auto &kv : input.named_parameters) {
 		if (kv.first == "secret") {
 			if (!kv.second.IsNull()) {
@@ -37,9 +39,8 @@ unique_ptr<FunctionData> QueryDicomFuncBind(ClientContext &context, TableFunctio
 			result->calling_ae_title = StringValue::Get(kv.second);
 		} else if (kv.first == "qr_level") {
 			auto input_qr_level = StringValue::Get(kv.second);
-			auto it = find(DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.begin(),
-			               DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.end(), StringUtil::Upper(input_qr_level));
-			if (it == DuckDBDicomUtils::QUERY_RETRIEVE_LEVELS.end()) {
+			auto it = find(qr_levels.begin(), qr_levels.end(), StringUtil::Upper(input_qr_level));
+			if (it == qr_levels.end()) {
 				throw InvalidInputException("Unknown Query/Retrieve level " + input_qr_level);
 			}
 			result->query_retrieve_level = StringUtil::Upper(input_qr_level);

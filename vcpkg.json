@@ -1,14 +1,13 @@
 {
   "dependencies": [
-    "boost-locale",
+    "boost-algorithm",
+    { "name": "boost-locale", "features": ["icu"], "version>=": "1.92.0" },
     "curl",
-    {
-      "name": "dcmtk",
-      "features": ["openssl"]
-    }
+    { "name": "dcmtk", "features": ["openssl"] }
   ],
   "vcpkg-configuration": {
     "overlay-ports": ["./extension-ci-tools/vcpkg_ports", "./vcpkg-ports"],
     "overlay-triplets": ["./extension-ci-tools/toolchains"]
-  }
+  },
+  "builtin-baseline": "93ad765c7b66ab9ce97469ec23a90b15c3a14ee5"
 }
